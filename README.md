@@ -1,10 +1,20 @@
-# Default Dareplane Module Server
+# Dareplane Python Utils
+This module includes utilities for python which are used within the dareplane 
+framework. It contains functionality which shared can be reused within multiple modules.
+This currently includes:
+1. A `DefaultServer` - which will be loaded an extended within each module to implement the dareplane API
+1. `logging` - which contains the standard formatting and a SocketHandler which is modified to send `json` representations of the logging records to the default logging server port (9020). This is used to enable cross process logging.
+1. A `StreamWatcher` implementation - which is a utility class to query a single LSL stream into a ring buffer.
+
+
+## Default Dareplane Server
 
 This default server is used by all `Dareplane` python modules as a starting
 point for their `TCP` socket. The idea is to have a single source for common
 functionality and patch everything that is model specific on top of this
 
-# Functional incarnations
+
+### Functional incarnations
 
 Currently we are faced with two functional incarnations of servers
 
