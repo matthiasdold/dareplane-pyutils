@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = dareplane_utils
+version = 0.0.1
+author = Matthias Dold
+author_email = matthias.dold@gmx.de
+description = Default utilities for the dareplane platform
+long_description = file: README.md
+long_description_content_type = text/markdown
+url = 
+classifiers =
+    Programming Language :: Python :: 3
+    Operating System :: OS Independent
+
+[project.options]
+package_dir =
+    = src
+packages = find:
+python_requires = >=3.10
+[project.options.packages.find]
+where = src
+
+[tool.pytest.ini_options]
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+    "./"
+]
+filterwarnings = ["ignore:::.*fire.core"]
