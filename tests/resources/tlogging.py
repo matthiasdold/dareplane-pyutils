@@ -1,13 +1,13 @@
 import logging
 from dareplane_utils.logging.logger import get_logger
 
-rootLogger = get_logger("")
-rootLogger.setLevel(logging.DEBUG)
+root_logger = get_logger("")
+root_logger.setLevel(logging.DEBUG)
 
 logging.info("info_root")
 
-logger1 = logging.getLogger("myapp.area1")
-logger2 = logging.getLogger("myapp.area2")
+logger1 = get_logger("myapp.area1")
+logger2 = get_logger("myapp.area2")
 logger1.debug("debug1")
 logger1.info("info1")
 logger1.warning("debug1")

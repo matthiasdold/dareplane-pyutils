@@ -58,6 +58,7 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
             name = self.server.logname
         else:
             name = record.name
+
         logger = logging.getLogger(name)
 
         # N.B. EVERY record gets logged. This is because Logger.handle
@@ -91,7 +92,7 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
         modify_root_logger(self.logfile)
 
     def serve_until_stopped(self):
-        print("Start serving")
+        print("LogRecordSocketReceiver is up and listening")
         abort = 0
         while not abort:
             rd, wr, ex = select.select(
@@ -113,7 +114,6 @@ def modify_root_logger(logfile: Path):
 
     # Filtering should be done at client level - server will log all
     cfg["root"]["level"] = logging.DEBUG
-
     cfg["root"]["handlers"] = ["console", "file"]
 
     logging.config.dictConfig(cfg)
