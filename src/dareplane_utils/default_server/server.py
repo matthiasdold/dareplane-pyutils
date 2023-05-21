@@ -7,12 +7,13 @@ from typing import Callable
 
 from dataclasses import dataclass, field
 
-from dareplane_default_server.functions import (
+from dareplane_utils.default_server.functions import (
     interpret_msg,
     stop_thread,
     stop_process,
 )
-from dareplane_default_server.logging import logger
+from dareplane_utils.logging.logger import get_logger
+logger = get_logger(__name__)
 
 
 class UnknownMsgInterpretation(Exception):
