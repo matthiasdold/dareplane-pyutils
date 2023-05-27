@@ -98,6 +98,11 @@ class DefaultServer:
                 except socket.timeout as err:
                     logger.info(f"Caugth timeout error {err=}")
 
+                except KeyboardInterrupt as err:
+                    logger.info(
+                        f"Received KeyboardInterrupt - stopping the server"
+                    )
+
                 except UnicodeDecodeError as err:
                     self.current_conn.sendall(
                         f"Was unable to decode {msg=} to ascii\n".encode()
