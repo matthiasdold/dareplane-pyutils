@@ -21,3 +21,6 @@ Currently we are faced with two functional incarnations of servers
 1. Spawning functionality from the server in a separate thread, being linked via events to the
    main thread (usually the server).
 2. Spawning a subprocess for running functionality - Currently necessary for running `psychopy` as it cannot be run from outside the main thread.
+ 
+## Logging
+The logging tools allow two main entry point, which are `from dareplane_utils.logging.logger import get_logger`, which is used to get a logger with the default configuration and `from dareplane_utils.logging.server import LogRecordSocketReceiver` which is used to spawn up a server for consolidating logs of different processes.

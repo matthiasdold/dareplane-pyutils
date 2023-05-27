@@ -7,7 +7,8 @@ import subprocess
 
 from typing import Callable
 
-from dareplane_default_server.logging import logger
+from dareplane_utils.logging.logger import get_logger
+logger = get_logger(__name__)
 
 
 def parse_msg(msg: str, pcommand_map: dict) -> tuple[Callable, tuple, dict]:
