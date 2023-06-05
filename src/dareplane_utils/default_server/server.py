@@ -13,6 +13,7 @@ from dareplane_utils.default_server.functions import (
     stop_process,
 )
 from dareplane_utils.logging.logger import get_logger
+
 logger = get_logger(__name__)
 
 
@@ -64,7 +65,14 @@ class DefaultServer:
             self.is_listening = True
             # for now just work on one / the current connection, implement
             # TODO: implement dealing with multiple connection
-            current_conn, addr = self.server_socket.accept()
+            try:
+                current_conn, addr = self.server_socket.accept()
+            except Exception as err:
+                logger.error(
+                    f"Error accepting connection at {self.ip=}, {self.port=}, {self.server_socket=}"
+                )
+                raise err
+
             self.current_conn = current_conn
             self.current_conn.sendall(f"Connected to {self.name}\n".encode())
             while not self.listen_stop_event.is_set():
@@ -144,7 +152,9 @@ class DefaultServer:
             )  # common start byte, would lead to an error in decode otherwise # noqa
 
             self.current_conn.sendall(
-                ("|".join(self.pcommand_map.keys())).encode()
+                (
+                    "|".join(list(self.pcommand_map.keys()) + ["STOP", "CLOSE"])
+                ).encode()
             )
         elif msg == b"UP":
             self.current_conn.sendall(b"1")

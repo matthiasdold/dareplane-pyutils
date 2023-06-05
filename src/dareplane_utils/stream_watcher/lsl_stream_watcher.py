@@ -8,6 +8,13 @@ from dareplane_utils.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
+# ch = logging.StreamHandler()
+# ch.setFormatter(logging.Formatter("%(levelname)s - %(asctime)s - %(message)s"))
+# logger.addHandler(ch)
+# logger.setLevel(10)
+#
+#
+
 
 class StreamWatcherNotConnected(ValueError):
     pass
@@ -80,6 +87,7 @@ class StreamWatcher:
         self.last_t: float = 0
         self.curr_i: int = 0
         self.samples: list[list[float]] = []
+        self.times: list[float] = []
         self.n_new: int = 0
 
         self.logger = logger
@@ -96,7 +104,7 @@ class StreamWatcher:
             name = self.name
 
         self.streams = pylsl.resolve_byprop("name", name)
-        if len(self.streams) > 0:
+        if len(self.streams) > 1:
             print(f"Selecting stream by {name=} was ambigous - taking first")
 
         self.inlet = pylsl.StreamInlet(self.streams[0])
@@ -115,7 +123,14 @@ class StreamWatcher:
                 " connect_to_stream() on it?"
             )
 
-        n_samples = int(self.streams[0].nominal_srate() * self.buffer_size_s)
+        # set a default value for irregular streams
+        if self.streams[0].nominal_srate() == 0:
+            n_samples = 1000
+        else:
+            n_samples = int(
+                self.streams[0].nominal_srate() * self.buffer_size_s
+            )
+
         self.n_buffer = n_samples
 
         # Using numpy buffers
@@ -140,6 +155,7 @@ class StreamWatcher:
             old_i = self.curr_i
 
             self.curr_i = (self.curr_i + len(samples)) % self.n_buffer
+            # self.logger.debug(f"{old_i=}, {self.curr_i=}, {len(samples)=}")
 
             # plain forward fill
             if old_i < self.curr_i:
@@ -175,7 +191,8 @@ class StreamWatcher:
         )
 
     def unfold_buffer_t(self):
-        return np.vstack(
+        # Do hstack here as the time buffer will be of dim (n,1) anyways
+        return np.hstack(
             [self.buffer_t[self.curr_i :], self.buffer_t[: self.curr_i]]
         )
 
