@@ -8,6 +8,9 @@ import subprocess
 from typing import Callable
 
 from dareplane_utils.logging.logger import get_logger
+from logging import Logger
+
+
 logger = get_logger(__name__)
 
 

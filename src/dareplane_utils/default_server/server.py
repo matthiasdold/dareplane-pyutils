@@ -13,8 +13,7 @@ from dareplane_utils.default_server.functions import (
     stop_process,
 )
 from dareplane_utils.logging.logger import get_logger
-
-logger = get_logger(__name__)
+from logging import Logger
 
 
 class UnknownMsgInterpretation(Exception):
@@ -45,6 +44,7 @@ class DefaultServer:
     )
     processes: dict[str, subprocess.Popen] = field(default_factory=dict)
     is_listening: bool = False
+    logger: Logger = get_logger(__name__)
 
     def init_server(self, stop_event: threading.Event = threading.Event()):
         # spawn a socket
@@ -68,7 +68,7 @@ class DefaultServer:
             try:
                 current_conn, addr = self.server_socket.accept()
             except Exception as err:
-                logger.error(
+                self.logger.error(
                     f"Error accepting connection at {self.ip=}, {self.port=}, {self.server_socket=}"
                 )
                 raise err
@@ -79,7 +79,7 @@ class DefaultServer:
                 try:
                     msg = self.current_conn.recv(1024)
                     if msg:
-                        logger.info(f"Received: {msg}")
+                        self.logger.info(f"Received: {msg}")
                         # interpret the message
 
                         # Default functionality which should always be there
@@ -102,13 +102,13 @@ class DefaultServer:
                                 self.msg_interpretation(msg)
 
                             else:
-                                logger.warning(f"Unknown pcomm in {msg=}")
+                                self.logger.warning(f"Unknown pcomm in {msg=}")
 
                 except socket.timeout as err:
-                    logger.info(f"Caugth timeout error {err=}")
+                    self.logger.info(f"Caugth timeout error {err=}")
 
                 except KeyboardInterrupt as err:
-                    logger.info(
+                    self.logger.info(
                         f"Received KeyboardInterrupt - stopping the server"
                     )
 
@@ -117,7 +117,7 @@ class DefaultServer:
                         f"Was unable to decode {msg=} to ascii\n".encode()
                     )
                 except Exception as err:
-                    logger.error(f"Caught error {err=}")
+                    self.logger.error(f"Caught error {err=}")
                     self.is_listening = False
                     raise err
 
@@ -170,7 +170,7 @@ class DefaultServer:
 
         # the book keeping part
         if isinstance(ret, int):
-            logger.debug(f"{msg=} returned {ret=} after interpretation")
+            self.logger.debug(f"{msg=} returned {ret=} after interpretation")
             pass
 
         # any implementation returning a thread should return the stop_event alongside
@@ -180,11 +180,13 @@ class DefaultServer:
             and isinstance(ret[0], threading.Thread)
             and isinstance(ret[1], threading.Event)
         ):
-            logger.debug(f"{msg=} returned a thread after interpretation")
+            self.logger.debug(f"{msg=} returned a thread after interpretation")
             self.threads[f"{time.time_ns()}_{msg}"] = ret
 
         elif isinstance(ret, subprocess.Popen):
-            logger.debug(f"{msg=} returned a subprocess after interpretation")
+            self.logger.debug(
+                f"{msg=} returned a subprocess after interpretation"
+            )
             self.processes[f"{time.time_ns()}_{msg}"] = ret
 
         else:
@@ -196,7 +198,7 @@ class DefaultServer:
 
     def shutdown(self):
         """Shutdown the server and close all connections"""
-        logger.info(f"Shutting down {self.name}")
+        self.logger.info(f"Shutting down {self.name}")
         if self.current_conn:
             self.current_conn.close()
 
