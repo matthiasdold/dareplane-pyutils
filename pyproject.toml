@@ -9,7 +9,9 @@ authors = [{name="Matthias Dold", email="matthias.dold@gmx.de"}]
 description = "Default utilities for the dareplane platform"
 readme ="README.md"
 requires-python = ">=3.10"
-repository = "https://github.com/matthiasdold/dareplane-pyutils"
+
+[project.urls]
+"homepage" = "https://github.com/matthiasdold/dareplane-pyutils"
 
 [tool.pytest.ini_options]
 addopts = "-ra -q"
