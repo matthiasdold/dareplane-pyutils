@@ -1,14 +1,13 @@
-import ujson
 import logging
 import select
-import struct
 import socketserver
-
+import struct
 from pathlib import Path
+
+import ujson
 from fire import Fire
 
 from dareplane_utils.logging.logger import default_dareplane_config
-
 
 # NOTE: For a usuall dareplane setup, we will not have more than one
 # instance of a LogRecordSocketReceiver, which is usually managed via the
