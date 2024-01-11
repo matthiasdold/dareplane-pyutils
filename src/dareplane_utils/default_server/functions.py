@@ -13,6 +13,10 @@ from dareplane_utils.logging.logger import get_logger
 logger = get_logger(__name__)
 
 
+def noop(*args, **kwargs) -> int:
+    return 0
+
+
 def parse_msg(
     msg: str, pcommand_map: dict, logger: Logger = logger
 ) -> tuple[Callable, tuple, dict]:
@@ -41,7 +45,6 @@ def parse_msg(
     split = msg.decode().split("|")
     pcomm = split[0]
     args = split[1:-1]
-    logger.debug(f"{split[-1:]}")
     try:
         kwargs = orjson.loads(split[-1]) if len(split) > 1 else {}
     except orjson.JSONDecodeError as e:
@@ -49,7 +52,7 @@ def parse_msg(
             f"Could not parse json payload {msg.decode()=}: {e}, "
             "ignoring msg!"
         )
-        return lambda: 0, (), {}  # NOOP with no args or kwargs
+        return noop, (), {}  # NOOP with no args or kwargs
 
     return pcommand_map[pcomm], args, kwargs
 
@@ -78,11 +81,13 @@ def interpret_msg(
         them during the shutdown
     """
     # Get correct function and parse kwargs from json payload
-    func, pargs, pkwargs = parse_msg(binary_msg, pcommand_map=pcommand_map)
+    func, pargs, pkwargs = parse_msg(
+        binary_msg, pcommand_map=pcommand_map, logger=logger
+    )
 
     # Add kwargs which might have been passed to the server     # noqa
     pkwargs.update(**kwargs)
-    logger.debug(f"Interpreting {func=}, {pargs=}, {pkwargs=}")
+    logger.debug(f"Interpreting {func.__name__=}, {pargs=}, {pkwargs=}")
     ret = func(*pargs, **pkwargs)
 
     return ret
