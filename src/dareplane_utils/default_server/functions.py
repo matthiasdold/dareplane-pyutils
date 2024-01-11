@@ -2,6 +2,7 @@ import signal
 import subprocess
 import threading
 import time
+from logging import Logger
 from typing import Callable
 
 import orjson
@@ -12,7 +13,9 @@ from dareplane_utils.logging.logger import get_logger
 logger = get_logger(__name__)
 
 
-def parse_msg(msg: str, pcommand_map: dict) -> tuple[Callable, tuple, dict]:
+def parse_msg(
+    msg: str, pcommand_map: dict, logger: Logger = logger
+) -> tuple[Callable, tuple, dict]:
     """
     Parse a bytes msg and return the relevant function + potential kwargs
 
@@ -34,11 +37,11 @@ def parse_msg(msg: str, pcommand_map: dict) -> tuple[Callable, tuple, dict]:
 
     """
 
-    logger.info(f"Splitting: {msg=}")
+    logger.debug(f"Splitting: {msg=}")
     split = msg.decode().split("|")
     pcomm = split[0]
     args = split[1:-1]
-    logger.info(f"{split[-1:]}")
+    logger.debug(f"{split[-1:]}")
     try:
         kwargs = orjson.loads(split[-1]) if len(split) > 1 else {}
     except orjson.JSONDecodeError as e:
@@ -53,7 +56,7 @@ def parse_msg(msg: str, pcommand_map: dict) -> tuple[Callable, tuple, dict]:
 
 # This is the default behavior for interpretation of messages
 def interpret_msg(
-    binary_msg: str, pcommand_map: dict, **kwargs
+    binary_msg: str, pcommand_map: dict, logger: Logger = logger, **kwargs
 ) -> threading.Thread | subprocess.Popen | int:
     """Interpret a message and start a threading, subprocess or return an int
 

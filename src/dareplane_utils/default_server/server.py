@@ -164,7 +164,7 @@ class DefaultServer:
 
     def msg_interpretation(self, msg: str):
         """Interpret the message and perform book keeping if necessary"""
-        ret = interpret_msg(msg, self.pcommand_map)
+        ret = interpret_msg(msg, self.pcommand_map, logger=self.logger)
 
         # the book keeping part
         if isinstance(ret, int):
