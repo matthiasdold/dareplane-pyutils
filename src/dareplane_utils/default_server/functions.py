@@ -1,15 +1,13 @@
-import orjson
-import time
-import psutil
 import signal
-import threading
 import subprocess
-
+import threading
+import time
 from typing import Callable
 
-from dareplane_utils.logging.logger import get_logger
-from logging import Logger
+import orjson
+import psutil
 
+from dareplane_utils.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -41,7 +39,14 @@ def parse_msg(msg: str, pcommand_map: dict) -> tuple[Callable, tuple, dict]:
     pcomm = split[0]
     args = split[1:-1]
     logger.info(f"{split[-1:]}")
-    kwargs = orjson.loads(split[-1]) if len(split) > 1 else {}
+    try:
+        kwargs = orjson.loads(split[-1]) if len(split) > 1 else {}
+    except orjson.JSONDecodeError as e:
+        logger.error(
+            f"Could not parse json payload {msg.decode()=}: {e}, "
+            "ignoring msg!"
+        )
+        return lambda: 0, (), {}  # NOOP with no args or kwargs
 
     return pcommand_map[pcomm], args, kwargs
 
@@ -104,7 +109,7 @@ def stop_process(process: subprocess.Popen):
     """Close all child processes of a Popen instance"""
     parent_ps = psutil.Process(process.pid)
     max_iter = 5
-    i, j = 0, 0
+    i = 0
 
     # close the children
     while parent_ps and parent_ps.children() != [] and i <= max_iter:
