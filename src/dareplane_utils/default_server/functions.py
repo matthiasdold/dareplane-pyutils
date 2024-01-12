@@ -87,7 +87,10 @@ def interpret_msg(
 
     # Add kwargs which might have been passed to the server     # noqa
     pkwargs.update(**kwargs)
-    logger.debug(f"Interpreting {func.__name__=}, {pargs=}, {pkwargs=}")
+
+    # Note, if func is a decorated function, we would not have a __name__
+    # so we are printing the full func= here.
+    logger.debug(f"Interpreting {func=}, {pargs=}, {pkwargs=}")
     ret = func(*pargs, **pkwargs)
 
     return ret

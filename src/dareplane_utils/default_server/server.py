@@ -242,16 +242,31 @@ class DefaultCallbackServer(DefaultServer):
 
     def start_listening(self):
         # main loop for running the server
+        self.logger.debug("Callback server starting to listen")
         while not self.listen_stop_event.is_set():
             self.is_listening = True
             # for now just work on one / the current connection, implement
-            # TODO: implement dealing with multiple connection
             # TODO: refactor this part for a cleaner implementation of the dealing with callbacks -> all copy and paste from above, besides 4 lines
             try:
                 current_conn, addr = self.server_socket.accept()
+
+                # Initialize the callback thread
+                callback_stop_event = threading.Event()
+                callback_thread = threading.Thread(
+                    target=process_callbacks,
+                    args=(self, callback_stop_event),
+                )
+                # add to automatically manage closing
+                self.threads["callbacks"] = (
+                    callback_thread,
+                    callback_stop_event,
+                )
+                callback_thread.start()
+
             except Exception as err:
                 self.logger.error(
-                    f"Error accepting connection at {self.ip=}, {self.port=}, {self.server_socket=}"
+                    f"Error accepting connection at {self.ip=}, {self.port=}, "
+                    f"{self.server_socket=}"
                 )
                 raise err
 
@@ -287,12 +302,6 @@ class DefaultCallbackServer(DefaultServer):
                             else:
                                 self.logger.warning(f"Unknown pcomm in {msg=}")
 
-                        # Process callback stack
-                        while len(self.callback_stack) > 0:
-                            self.current_conn.sendall(
-                                self.callback_stack.pop(0).encode()
-                            )
-
                 except socket.timeout as err:
                     self.logger.info(f"Caugth timeout error {err=}")
 
@@ -311,3 +320,12 @@ class DefaultCallbackServer(DefaultServer):
                     raise err
 
         self.is_listening = False
+
+
+def process_callbacks(
+    server: DefaultCallbackServer, stop_event: threading.Event
+):
+    # Process callback stack
+    while not stop_event.is_set():
+        while len(server.callback_stack) > 0:
+            server.current_conn.sendall(server.callback_stack.pop(0).encode())
