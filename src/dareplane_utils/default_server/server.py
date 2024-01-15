@@ -1,19 +1,15 @@
-import time
 import socket
-import threading
 import subprocess
-
+import threading
+import time
+from dataclasses import dataclass, field
+from logging import Logger
 from typing import Callable
 
-from dataclasses import dataclass, field
-
-from dareplane_utils.default_server.functions import (
-    interpret_msg,
-    stop_thread,
-    stop_process,
-)
+from dareplane_utils.default_server.functions import (interpret_msg,
+                                                      stop_process,
+                                                      stop_thread)
 from dareplane_utils.logging.logger import get_logger
-from logging import Logger
 
 
 class UnknownMsgInterpretation(Exception):
@@ -107,12 +103,12 @@ class DefaultServer:
                 except socket.timeout as err:
                     self.logger.info(f"Caugth timeout error {err=}")
 
-                except KeyboardInterrupt as err:
+                except KeyboardInterrupt as _:
                     self.logger.info(
-                        f"Received KeyboardInterrupt - stopping the server"
+                        "Received KeyboardInterrupt - stopping the server"
                     )
 
-                except UnicodeDecodeError as err:
+                except UnicodeDecodeError as _:
                     self.current_conn.sendall(
                         f"Was unable to decode {msg=} to ascii\n".encode()
                     )
@@ -153,7 +149,9 @@ class DefaultServer:
 
             self.current_conn.sendall(
                 (
-                    "|".join(list(self.pcommand_map.keys()) + ["STOP", "CLOSE"])
+                    "|".join(
+                        list(self.pcommand_map.keys()) + ["STOP", "CLOSE"]
+                    )
                 ).encode()
             )
         elif msg == b"UP":
@@ -166,7 +164,7 @@ class DefaultServer:
 
     def msg_interpretation(self, msg: str):
         """Interpret the message and perform book keeping if necessary"""
-        ret = interpret_msg(msg, self.pcommand_map)
+        ret = interpret_msg(msg, self.pcommand_map, logger=self.logger)
 
         # the book keeping part
         if isinstance(ret, int):
@@ -191,7 +189,7 @@ class DefaultServer:
 
         else:
             raise UnknownMsgInterpretation(
-                "Unknown msg interpretation for"
+                "Unknown msg interpretation return for "
                 f"{msg=} and {ret=} "
                 " valid interpretations should return int|tuple[threading.Thread, threading.Event]|subprocess.Popen"
             )
@@ -230,3 +228,104 @@ class DefaultServer:
         # also use the shutdown in the finalizer in case the instance is
         # removed from memory
         self.shutdown()
+
+
+@dataclass
+class DefaultCallbackServer(DefaultServer):
+    """
+    The default server extended with a callback capability
+    """
+
+    callback_stack: list[str] = field(
+        default_factory=list
+    )  # list of callback payloads, which will be sent to connected clients
+
+    def start_listening(self):
+        # main loop for running the server
+        self.logger.debug("Callback server starting to listen")
+        while not self.listen_stop_event.is_set():
+            self.is_listening = True
+            # for now just work on one / the current connection, implement
+            # TODO: refactor this part for a cleaner implementation of the dealing with callbacks -> all copy and paste from above, besides 4 lines
+            try:
+                current_conn, addr = self.server_socket.accept()
+
+                # Initialize the callback thread
+                callback_stop_event = threading.Event()
+                callback_thread = threading.Thread(
+                    target=process_callbacks,
+                    args=(self, callback_stop_event),
+                )
+                # add to automatically manage closing
+                self.threads["callbacks"] = (
+                    callback_thread,
+                    callback_stop_event,
+                )
+                callback_thread.start()
+
+            except Exception as err:
+                self.logger.error(
+                    f"Error accepting connection at {self.ip=}, {self.port=}, "
+                    f"{self.server_socket=}"
+                )
+                raise err
+
+            self.current_conn = current_conn
+            self.current_conn.sendall(f"Connected to {self.name}\n".encode())
+            while not self.listen_stop_event.is_set():
+                try:
+                    # Process incoming
+                    msg = self.current_conn.recv(1024)
+                    if msg:
+                        self.logger.info(f"Received: {msg}")
+                        # interpret the message
+
+                        # Default functionality which should always be there
+                        # and the same for all servers
+                        is_default_command = self.default_msg_interpretation(
+                            msg
+                        )
+
+                        # if not a default command, check the pcmommand map
+                        if not is_default_command:
+                            msg = msg.replace(b"\r\n", b"")
+                            # common start byte, would lead to an error in decode otherwise # noqa
+                            msg = msg.replace(b"\xc2", b"")
+                            # Ignore blanks -> e.g. accidental return in telnet
+                            if (
+                                msg != b""
+                                and msg.decode("ascii").split("|")[0]
+                                in self.pcommand_map.keys()
+                            ):
+                                self.msg_interpretation(msg)
+
+                            else:
+                                self.logger.warning(f"Unknown pcomm in {msg=}")
+
+                except socket.timeout as err:
+                    self.logger.info(f"Caugth timeout error {err=}")
+
+                except KeyboardInterrupt as _:
+                    self.logger.info(
+                        "Received KeyboardInterrupt - stopping the server"
+                    )
+
+                except UnicodeDecodeError as _:
+                    self.current_conn.sendall(
+                        f"Was unable to decode {msg=} to ascii\n".encode()
+                    )
+                except Exception as err:
+                    self.logger.error(f"Caught error {err=}")
+                    self.is_listening = False
+                    raise err
+
+        self.is_listening = False
+
+
+def process_callbacks(
+    server: DefaultCallbackServer, stop_event: threading.Event
+):
+    # Process callback stack
+    while not stop_event.is_set():
+        while len(server.callback_stack) > 0:
+            server.current_conn.sendall(server.callback_stack.pop(0).encode())
