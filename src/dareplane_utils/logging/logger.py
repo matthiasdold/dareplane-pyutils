@@ -4,17 +4,21 @@ import logging.config
 default_dareplane_config = {
     "version": 1,
     "formatters": {
-        "dareplane_standard": {
+        "dareplane_standard_color": {
             "()": "colorlog.ColoredFormatter",
             "format": "%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(reset)s %(white)s%(message)s",
-        }
+        },
+        "dareplane_standard": {
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "dareplane_standard",
+            "formatter": "dareplane_standard_color",
         },
         "socket": {
+            "formatter": "dareplane_standard",
             "class": "dareplane_utils.logging.ujson_socket_handler.UJsonSocketHandler",
             "host": "localhost",
             "port": 9020,
