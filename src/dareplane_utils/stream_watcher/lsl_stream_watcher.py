@@ -1,9 +1,10 @@
-import pylsl
 import logging
-import xmltodict
 
 import numpy as np
+import pylsl
+import xmltodict
 
+from dareplane_utils.general.ringbuffer import RingBuffer
 from dareplane_utils.logging.logger import get_logger
 
 logger = get_logger(__name__)
@@ -56,6 +57,9 @@ def get_channel_names(inf: pylsl.pylsl.StreamInfo) -> list[str]:
                 for ch_inf in d["info"]["desc"]["channels"]["channel"]
             ]
     except TypeError as err:
+        logger.debug(
+            f"No channel info - continue with default: ch_1, ch_2,... - {err}"
+        )
         return [f"ch_{i + 1}" for i in range(inf.channel_count())]
 
 
@@ -79,18 +83,19 @@ class StreamWatcher:
         self.buffer_size_s = buffer_size_s
         self.stream = None
         self.inlet = None
+        self.buffer = None
 
         # Set after connection
-        self.n_buffer: int = 0
-        self.buffer_t: np.ndarray = np.asarray([])
-        self.buffer: np.ndarray = np.asarray([])
-        self.last_t: float = 0
-        self.curr_i: int = 0
         self.samples: list[list[float]] = []
         self.times: list[float] = []
         self.n_new: int = 0
-
         self.logger = logger
+
+        # used to expose the ring buffer data structure directly
+        self.buffer = np.array([])
+        self.buffer_t = np.array([])
+        self.last_t = 0
+        self.curr_i = 0
 
     def connect_to_stream(self, identifier: dict | None = None):
         """
@@ -131,74 +136,33 @@ class StreamWatcher:
                 self.streams[0].nominal_srate() * self.buffer_size_s
             )
 
-        self.n_buffer = n_samples
+        self.ring_buffer = RingBuffer((n_samples, len(self.channel_names)))
 
-        # Using numpy buffers
-        self.buffer = np.empty((n_samples, len(self.channel_names)))
-        self.buffer_t = np.empty(n_samples)
-        self.last_t = 0  # last time stamp
-        self.curr_i = 0
-
-    def add_samples(self, samples: list, times: list):
-        if len(samples) > 0 and len(times) > 0:
-            if len(samples) > self.n_buffer:
-                self.logger.warning(
-                    "Received more data than fitting into the"
-                    " buffer. Will only add data to fill buffer"
-                    " once with the latest data"
-                )
-
-                samples = samples[-self.n_buffer :]
-                times = times[-self.n_buffer :]
-
-            # make it a ring buffer with FIFO
-            old_i = self.curr_i
-
-            self.curr_i = (self.curr_i + len(samples)) % self.n_buffer
-            # self.logger.debug(f"{old_i=}, {self.curr_i=}, {len(samples)=}")
-
-            # plain forward fill
-            if old_i < self.curr_i:
-                self.buffer[old_i : self.curr_i] = samples
-                self.buffer_t[old_i : self.curr_i] = times
-            # fill buffer up
-            elif self.curr_i == 0:
-                self.buffer[old_i:] = samples
-                self.buffer_t[old_i:] = times
-
-            # split needed -> start over at beginning
-            else:
-                self.logger.debug("Splitting data to add as buffer is full")
-                nfull = self.n_buffer - old_i
-                self.buffer[old_i:] = samples[:nfull]
-                self.buffer_t[old_i:] = times[:nfull]
-
-                self.buffer[: self.curr_i] = samples[nfull:]
-                self.buffer_t[: self.curr_i] = times[nfull:]
-
-            self.last_t = times[-1]
+        # link properties
+        self.buffer = self.ring_buffer.buffer
+        self.buffer_t = self.ring_buffer.buffer_t
+        self.last_t = self.ring_buffer.last_t
+        self.curr_i = self.ring_buffer.curr_i
 
     def update(self):
         """Look for new data and update the buffer"""
         samples, times = self.inlet.pull_chunk()
-        self.add_samples(samples, times)
+        self.ring_buffer.add_samples(samples, times)
         self.samples = samples
         self.n_new += len(samples)
 
     def unfold_buffer(self):
-        return np.vstack(
-            [self.buffer[self.curr_i :], self.buffer[: self.curr_i]]
-        )
+        return self.ring_buffer.unfold_buffer()
 
     def unfold_buffer_t(self):
         # Do hstack here as the time buffer will be of dim (n,1) anyways
-        return np.hstack(
-            [self.buffer_t[self.curr_i :], self.buffer_t[: self.curr_i]]
-        )
+        return self.ring_buffer.unfold_buffer_t()
 
     def disconnect(self):
-        """TODO to be implemented"""
-        pass
+        """Destroying the inlet will disconnect -> see pylsl.pylsl.py"""
+        logger.info(f"Disconnecting from LSL stream - LSLInlet:{self.inlet}")
+        del self.inlet
+        self.inlet = None
 
 
 if __name__ == "__main__":

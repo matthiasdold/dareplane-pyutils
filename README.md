@@ -102,3 +102,9 @@ sw.unfold_buffer_t()   # sorted time stamps
             [self.buffer[self.curr_i :], self.buffer[: self.curr_i]]
         )
 ```
+
+## TODO
+
+- [ ] Update the StreamWatcher
+  - [ ] channel names are only initialized on connection
+  - [ ] .stream vs .streams
