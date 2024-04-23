@@ -45,12 +45,52 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
 
             record = logging.makeLogRecord(obj)
 
+            # Overwrite as args sent from plotly dash errors would otherwise
+            # break at logger.handle(record)
+            if record.args == "()":
+                record.args = []
+
+            # Other adjustments for records emitted via dash/waitress
+            if isinstance(record.created, str):
+                record.created = float(record.created)
+
+            if isinstance(record.relativeCreated, str):
+                record.relativeCreated = float(record.relativeCreated)
+
+            if isinstance(record.msecs, str):
+                record.msecs = float(record.msecs)
+
             self.handle_log_record(record)
+
+            # Example record from dash / waitress:
+            # {
+            #     "name": "control_room.gui.app",
+            #     "msg": "Exception on /_dash-update-component [POST]",
+            #     "args": "()",
+            #     "levelname": "ERROR",
+            #     "levelno": 40,
+            #     "pathname": "/Users/../wvenv3.12/lib/python3.12/site-packages/flask/app.py",
+            #     "filename": "app.py",
+            #     "module": "app",
+            #     "exc_info": "(<class 'KeyError'>, KeyError('data_root'), <traceback object at 0x106eab100>)",
+            #     "exc_text": "None",
+            #     "stack_info": "None",
+            #     "lineno": 828,
+            #     "funcName": "log_exception",
+            #     "created": "1713889360.199748",
+            #     "msecs": "199.0",
+            #     "relativeCreated": "20730.786085128784",
+            #     "thread": 6158839808,
+            #     "threadName": "waitress-0",
+            #     "processName": "MainProcess",
+            #     "process": 57978,
+            #     "taskName": "None",
+            # }
 
     def load_ujson(self, data):
         return ujson.loads(data)
 
-    def handle_log_record(self, record):
+    def handle_log_record(self, record: logging.LogRecord):
         # if a name is specified, we use the named logger rather than the one
         # implied by the record.
         if self.server.logname is not None:

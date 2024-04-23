@@ -73,32 +73,9 @@ class DefaultServer:
             self.current_conn.sendall(f"Connected to {self.name}\n".encode())
             while not self.listen_stop_event.is_set():
                 try:
-                    msg = self.current_conn.recv(1024)
+                    msg = self.current_conn.recv(2048)
                     if msg:
-                        self.logger.info(f"Received: {msg}")
-                        # interpret the message
-
-                        # Default functionality which should always be there
-                        # and the same for all servers
-                        is_default_command = self.default_msg_interpretation(
-                            msg
-                        )
-
-                        # if not a default command, check the pcmommand map
-                        if not is_default_command:
-                            msg = msg.replace(b"\r\n", b"")
-                            # common start byte, would lead to an error in decode otherwise # noqa
-                            msg = msg.replace(b"\xc2", b"")
-                            # Ignore blanks -> e.g. accidental return in telnet
-                            if (
-                                msg != b""
-                                and msg.decode("ascii").split("|")[0]
-                                in self.pcommand_map.keys()
-                            ):
-                                self.msg_interpretation(msg)
-
-                            else:
-                                self.logger.warning(f"Unknown pcomm in {msg=}")
+                        self.handle_msg(msg)
 
                 except socket.timeout as err:
                     self.logger.info(f"Caugth timeout error {err=}")
@@ -118,6 +95,39 @@ class DefaultServer:
                     raise err
 
         self.is_listening = False
+
+    def handle_msg(self, msg: str):
+        """interpret the message"""
+
+        self.logger.info(f"Received: {msg}")
+        # Check if msg is concatenation of multiple commands, happends if
+        # processing of a single command takes to long so multiple commands
+        # end up at the socket
+        if b";" in msg:
+            for pc in msg.split(b";"):
+                if pc != b"":
+                    self.handle_msg(pc)
+        else:
+
+            # Default functionality which should always be there
+            # and the same for all servers
+            is_default_command = self.default_msg_interpretation(msg)
+
+            # if not a default command, check the pcmommand map
+            if not is_default_command:
+                msg = msg.replace(b"\r\n", b"")
+                # common start byte, would lead to an error in decode otherwise # noqa
+                msg = msg.replace(b"\xc2", b"")
+                # Ignore blanks -> e.g. accidental return in telnet
+                if (
+                    msg != b""
+                    and msg.decode("ascii").split("|")[0]
+                    in self.pcommand_map.keys()
+                ):
+                    self.msg_interpretation(msg)
+
+                else:
+                    self.logger.warning(f"Unknown pcomm in {msg=}")
 
     def default_msg_interpretation(self, msg: str) -> bool:
         """This contains the default interpretation"""
