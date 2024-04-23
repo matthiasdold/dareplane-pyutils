@@ -105,6 +105,4 @@ sw.unfold_buffer_t()   # sorted time stamps
 
 ## TODO
 
-- [ ] Update the StreamWatcher
-  - [ ] channel names are only initialized on connection
-  - [ ] .stream vs .streams
+- [ ] channel names are only initialized on connection
