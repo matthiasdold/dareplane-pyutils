@@ -106,7 +106,12 @@ class RingBuffer:
             )
 
     def add_samples(self, samples: list, times: list):
-        if len(samples) > 0 and len(times) > 0:
+        if len(samples) == 0 or len(times) == 0:
+            self.logger.warning(
+                f"Received empty data {samples=}, {times=}, "
+                "not adding to buffer"
+            )
+        else:
             buffer_size = self.buffer.shape[0]
             if len(samples) > buffer_size:
                 self.logger.warning(
@@ -116,79 +121,35 @@ class RingBuffer:
                 )
                 samples = samples[-buffer_size:]
                 times = times[-buffer_size:]
+
             # make it a ring buffer with FIFO
+            # This step should take about 300ns for 1024 samples
             slice_buffer, slice_samples, self.curr_i = self.get_insert_slices(
                 len(samples)
             )
+
             if len(slice_buffer) > 1:
-                self.logger.debug("Splitting data to add as buffer is full")
-                self.buffer[slice_buffer[0]] = samples[slice_samples[0]]
-                self.buffer_t[slice_buffer[0]] = times[slice_samples[0]]
-                self.buffer[slice_buffer[1]] = samples[slice_samples[1]]
-                self.buffer_t[slice_buffer[1]] = times[slice_samples[1]]
+                self.add_split_buffer(
+                    slice_buffer, slice_samples, samples, times
+                )
 
             else:
-                self.buffer[slice_buffer[0]] = samples[slice_samples[0]]
-                self.buffer_t[slice_buffer[0]] = times[slice_samples[0]]
+                self.add_continuous_buffer(slice_buffer, samples, times)
 
             self.last_t = times[-1]
 
+    # create a lot of smaller function calls for profiling
+    def add_split_buffer(self, slice_buffer, slice_samples, samples, times):
+        # self.logger.debug("Splitting data to add as buffer is full")
+        self.buffer[slice_buffer[0]] = samples[slice_samples[0]]
+        self.buffer[slice_buffer[1]] = samples[slice_samples[1]]
+        self.buffer_t[slice_buffer[0]] = times[slice_samples[0]]
+        self.buffer_t[slice_buffer[1]] = times[slice_samples[1]]
 
-if __name__ == "__main__":
-
-    x = np.random.rand(500_000, 5)
-    rb = RingBuffer((20_000, 5))
-    rb.add_samples(x[:1500], np.arange(1500))
-
-    np.random.seed(42)
-    inc = (np.random.rand(10) * 1000).astype(int)
-    ts = [np.arange(i) for i in inc]
-
-    def test_foo():
-        i = 0
-        for ic, t in zip(inc, ts):
-            rb.legacy_add_samples(x[i : i + ic], t)
-            i += ic
-
-    def test_foo_new():
-        i = 0
-        for ic, t in zip(inc, ts):
-            rb.add_samples(x[i : i + ic], t)
-            i += ic
-
-    # %timeit test_foo_new()
-    # %timeit test_foo()
-
-    # %timeit test_foo()
-    # --> old version without using get_insert_slices and using if statements
-    # In [18]:     %timeit test_foo()
-    # 15.5 µs ± 86.7 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    #
-    # New version is slower for a few 100 inserts, but up to 50% faster for smaller number of samples to add
-    # %timeit test_foo_new()
-    # 18.8 µs ± 35.4 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    #
-    # Also for a few 1000 inserts, speed is the same
-    #     #In [62]:     %timeit test_foo_new()
-    # 56 µs ± 1.03 µs per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
-    #
-    # In [63]:     %timeit test_foo()
-    # 53.3 µs ± 1.21 µs per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
-    #
-    # In [64]: inc
-    # Out[64]: array([3745, 9507, 7319, 5986, 1560, 1559,  580, 8661, 6011, 7080])
-
-    #
-    # %timeit a=slice(5, 2000) --> ~40ns for defining as slice
-    #
-    # Select with slice vs index
-    # s = slice(5, 2000)
-    # idx = np.arange(5, 2000)
-    # %timeit x[s] --> 75ns
-    # %timeit x[idx] --> 17us!!!
-    #
-    #
-    #
-    # In [5]: %timeit rb.unfold_buffer()
-    # 8.3 µs ± 79.7 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    #
+    def add_continuous_buffer(self, slice_buffer, samples, times):
+        """
+        Slice samples should not be necessary >>> as we add continuously
+        + slice selection from lists is slow
+        """
+        self.buffer[slice_buffer[0]] = samples
+        self.buffer_t[slice_buffer[0]] = times

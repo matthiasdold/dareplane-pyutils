@@ -9,13 +9,6 @@ from dareplane_utils.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
-# ch = logging.StreamHandler()
-# ch.setFormatter(logging.Formatter("%(levelname)s - %(asctime)s - %(message)s"))
-# logger.addHandler(ch)
-# logger.setLevel(10)
-#
-#
-
 
 class StreamWatcherNotConnected(ValueError):
     pass
@@ -80,7 +73,12 @@ class StreamWatcher:
             the data buffer size in seconds
         """
         self.name = name
+        # this concerns the ringbuffer
         self.buffer_size_s = buffer_size_s
+
+        # the maximum number of samples to pull in one go
+        self.chunk_buffer_size = 1024 * 32
+
         self.stream = None
         self.inlet = None
         self.buffer = None
@@ -144,12 +142,31 @@ class StreamWatcher:
         self.last_t = self.ring_buffer.last_t
         self.curr_i = self.ring_buffer.curr_i
 
+        # to have input from pylsl as numpy directly -> float32 is important!
+        # as this is pylsl default
+        self.chunk_buffer = np.zeros(
+            (self.chunk_buffer_size, len(self.channel_names))
+        ).astype(np.float32)
+
     def update(self):
         """Look for new data and update the buffer"""
-        samples, times = self.inlet.pull_chunk()
-        self.ring_buffer.add_samples(samples, times)
+
+        # This logic works as long as the returned samples are not too many
+        # samples, times = self.inlet.pull_chunk()
+        # Better use the direct assignment
+
+        _, times = self.inlet.pull_chunk(
+            max_samples=self.chunk_buffer_size, dest_obj=self.chunk_buffer
+        )
+
+        if len(times) > 0:
+            samples = self.chunk_buffer[: len(times), :]
+            self.ring_buffer.add_samples(samples, times)
+            self.overwriting_samples(samples)
+            self.n_new += len(times)
+
+    def overwriting_samples(self, samples):
         self.samples = samples
-        self.n_new += len(samples)
 
     def unfold_buffer(self):
         return self.ring_buffer.unfold_buffer()
