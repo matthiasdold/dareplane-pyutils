@@ -1,14 +1,13 @@
-import pytest
-import time
 import socket
-import psutil
 import threading
+import time
 
-from tests.resources.shared import get_test_thread
-
+import psutil
+import pytest
 
 from dareplane_utils.default_server.server import DefaultServer
 from dareplane_utils.logging.logger import get_logger
+from tests.resources.shared import get_test_thread
 
 logger = get_logger("testlogger")
 

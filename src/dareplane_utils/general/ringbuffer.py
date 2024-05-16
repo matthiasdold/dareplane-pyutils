@@ -26,8 +26,8 @@ class RingBuffer:
 
     def __init__(self, shape: tuple[int, int], dtype: type = np.float32):
         # Using numpy buffers
-        self.buffer = np.empty((shape[0], shape[1]), dtype=dtype)
-        self.buffer_t = np.empty(shape[0])
+        self.buffer = np.zeros((shape[0], shape[1]), dtype=dtype)
+        self.buffer_t = np.zeros(shape[0])
         self.last_t = 0  # last time stamp
         self.curr_i = 0
         self.logger = logger
