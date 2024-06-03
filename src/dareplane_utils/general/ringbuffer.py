@@ -22,11 +22,20 @@ class RingBuffer:
         index of the latest data point int the buffer
     logger : logging.Logger
         the logger used for warnings and debug messages
+
+
+    Parameters
+    ----------
+    shape : tuple[int, int, ...]
+        shape of the buffer needs to be at least 2D (n_samples, n_features),
+        arbitrary further dimensions can be added
+    dtype : type
+        a numpy data type for the buffer
     """
 
     def __init__(self, shape: tuple[int, int], dtype: type = np.float32):
         # Using numpy buffers
-        self.buffer = np.zeros((shape[0], shape[1]), dtype=dtype)
+        self.buffer = np.zeros(shape, dtype=dtype)
         self.buffer_t = np.zeros(shape[0])
         self.last_t = 0  # last time stamp
         self.curr_i = 0
