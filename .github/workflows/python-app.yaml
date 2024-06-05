@@ -22,7 +22,9 @@ jobs:
           pip install -r requirements.txt
           pip install .
       - name: Install liblsl
-        run: conda install -c conda-forge liblsl
+        run: |
+          wget https://github.com/sccn/liblsl/releases/download/v1.16.2/liblsl-1.16.2-bionic_amd64.deb
+          apt install ./liblsl*.deb
       - name: Test with pytest
         run: coverage run -m pytest -v -s
       - name: Generate test report
