@@ -26,6 +26,7 @@ jobs:
           wget https://github.com/sccn/liblsl/releases/download/v1.16.2/liblsl-1.16.2-bionic_amd64.deb
           sudo apt install ./liblsl*.deb
       - name: Test with pytest
-        run: coverage run -m pytest -v -s
-      - name: Generate test report
-        run: coverage report -m
+        run: pytest . -vv
+     #  run: coverage run -m pytest -v -s
+     # - name: Generate test report
+     #   run: coverage report -m
