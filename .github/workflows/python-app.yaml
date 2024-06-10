@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]   # multi-version workflows failed
 
     steps:
       - uses: actions/checkout@v4
@@ -24,8 +24,9 @@ jobs:
       - name: Install liblsl
         run: |
           wget https://github.com/sccn/liblsl/releases/download/v1.16.2/liblsl-1.16.2-bionic_amd64.deb
-          apt install ./liblsl*.deb
+          sudo apt install ./liblsl*.deb
       - name: Test with pytest
-        run: coverage run -m pytest -v -s
-      - name: Generate test report
-        run: coverage report -m
+        run: pytest . -vv
+     #  run: coverage run -m pytest -v -s
+     # - name: Generate test report
+     #   run: coverage report -m
