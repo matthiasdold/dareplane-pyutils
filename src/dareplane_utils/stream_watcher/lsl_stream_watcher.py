@@ -1,4 +1,6 @@
+import ctypes
 import logging
+from typing import Callable
 
 import numpy as np
 import pylsl
@@ -95,6 +97,10 @@ class StreamWatcher:
         self.last_t = 0
         self.curr_i = 0
 
+        # The update method will be overwritting during _init_buffer
+        # fit for the date type of the stream
+        self.update: Callable = lambda: None
+
     def connect_to_stream(self, identifier: dict | None = None):
         """
         Either use the self.name or a provided identifier dict to hook up
@@ -136,19 +142,44 @@ class StreamWatcher:
 
         self.ring_buffer = RingBuffer((n_samples, len(self.channel_names)))
 
-        # link properties
+        self._adjust_buffer_data_type()
+
+        # link properties -> for convenience of access
         self.buffer = self.ring_buffer.buffer
         self.buffer_t = self.ring_buffer.buffer_t
         self.last_t = self.ring_buffer.last_t
         self.curr_i = self.ring_buffer.curr_i
 
-        # to have input from pylsl as numpy directly -> float32 is important!
-        # as this is pylsl default
+        self._define_update_method()
+
+    def _adjust_buffer_data_type(self):
+        dtype_map = {
+            ctypes.c_char_p: "object",
+            ctypes.c_double: np.float64,  # could also be any int type
+            ctypes.c_byte: np.int8,
+            ctypes.c_short: np.int16,
+            ctypes.c_int: np.int32,
+            ctypes.c_int: np.int32,
+            ctypes.c_long: np.int64,
+        }
+
+        # default to np.float32 << LSL default
+        dtype = dtype_map.get(self.inlet.value_type, np.float32)
+
         self.chunk_buffer = np.zeros(
             (self.chunk_buffer_size, len(self.channel_names))
-        ).astype(np.float32)
+        ).astype(dtype)
 
-    def update(self):
+        self.ring_buffer.buffer = self.ring_buffer.buffer.astype(dtype)
+
+    def _define_update_method(self):
+
+        if self.inlet.value_type == ctypes.c_char_p:
+            self.update = self.update_char_p
+        else:
+            self.update = self.update_numeric
+
+    def update_numeric(self):
         """Look for new data and update the buffer"""
 
         # This logic works as long as the returned samples are not too many
@@ -161,6 +192,17 @@ class StreamWatcher:
 
         if len(times) > 0:
             samples = self.chunk_buffer[: len(times), :]
+            self.ring_buffer.add_samples(samples, times)
+            self.overwriting_samples(samples)
+            self.n_new += len(times)
+
+    def update_char_p(self):
+
+        samples, times = self.inlet.pull_chunk(
+            max_samples=self.chunk_buffer_size
+        )
+
+        if len(times) > 0:
             self.ring_buffer.add_samples(samples, times)
             self.overwriting_samples(samples)
             self.n_new += len(times)

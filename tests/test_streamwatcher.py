@@ -7,7 +7,8 @@ import pytest
 
 from dareplane_utils.logging.logger import get_logger
 from dareplane_utils.stream_watcher.lsl_stream_watcher import StreamWatcher
-from tests.resources.shared import get_test_thread
+
+# from tests.resources.shared import get_test_thread
 
 logger = get_logger("testlogger")
 
@@ -55,6 +56,19 @@ def spawn_lsl_stream():
     th.join()
 
 
+@pytest.fixture
+def get_markers_outlet() -> pylsl.StreamOutlet:
+    info = pylsl.StreamInfo(
+        "TestMarkers",
+        "Markers",
+        1,
+        nominal_srate=pylsl.IRREGULAR_RATE,
+        channel_format="string",
+    )
+
+    return pylsl.StreamOutlet(info)
+
+
 def test_connecting(spawn_lsl_stream):
     sw = StreamWatcher("test")
     sw.connect_to_stream()
@@ -89,3 +103,85 @@ def test_ringbuffer_updates(spawn_lsl_stream):
     assert np.abs(diff[:, 2] - 3 * diff[:, 0]).max() < 1e-6
     assert np.abs(diff[:, 3] - 4 * diff[:, 0]).max() < 1e-6
     assert np.abs(diff[:, 4] - 5 * diff[:, 0]).max() < 1e-6
+
+
+def test_reading_string_marker(get_markers_outlet):
+    markers_outlet = get_markers_outlet
+    # markers_outlet = get_markers_outlet()
+
+    sw = StreamWatcher("TestMarkers")
+    sw.connect_to_stream()
+    sw.update()
+
+    for i in range(10):
+        markers_outlet.push_sample([f"Marker - {i + 1}"])
+
+    time.sleep(0.1)
+    # check that the correct update method is selected
+    assert sw.update == sw.update_char_p
+
+    sw.update()
+
+    assert sw.buffer[0] == ["Marker - 1"]
+    assert sw.buffer[2] == ["Marker - 3"]
+    assert sw.buffer[9] == ["Marker - 10"]
+
+
+@pytest.mark.parametrize(
+    "fmt", ["float32", "double64", "string", "int32", "int16", "int8", "int64"]
+)
+def test_data_format_derivation(fmt):
+    # The valid formats are provided in the keys of pylsl.string2fmt
+    # string2fmt = {
+    #     "float32": cf_float32,
+    #     "double64": cf_double64,
+    #     "string": cf_string,
+    #     "int32": cf_int32,
+    #     "int16": cf_int16,
+    #     "int8": cf_int8,
+    #     "int64": cf_int64,
+    # }
+    fmt_map = {
+        "float32": np.float32,
+        "double64": np.float64,
+        "string": "object",
+        "int32": np.int32,
+        "int16": np.int16,
+        "int8": np.int8,
+        "int64": np.int64,
+    }
+    sname = f"TestStream_{fmt}"
+    info = pylsl.StreamInfo(
+        sname,
+        "EEG",
+        10,
+        nominal_srate=100,
+        channel_format=fmt,
+    )
+    outlet = pylsl.StreamOutlet(info)
+
+    sw = StreamWatcher(sname)
+    sw.connect_to_stream()
+    sw.update()
+
+    time.sleep(0.1)
+
+    if fmt == "string":
+        data = [[f"mrk_{i}" for i in range(10)]] * 5
+    else:
+        data = np.arange(100).reshape((-1, 10)).astype(fmt_map[fmt])
+
+    outlet.push_chunk(data)
+
+    time.sleep(0.1)
+
+    # check that the correct update method is selected
+    if fmt == "string":
+        assert sw.update == sw.update_char_p
+    else:
+        assert sw.update == sw.update_numeric
+
+    sw.update()
+
+    for i, d in enumerate(data):
+        assert np.all(sw.buffer[i] == d)
