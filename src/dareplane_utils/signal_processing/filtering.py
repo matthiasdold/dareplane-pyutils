@@ -32,6 +32,7 @@ class FilterBank:
         self.output = output
         self.n_in_channels = n_in_channels
         self.ch_names = [f"ch_{i}" for i in range(n_in_channels)]
+        self.bands = bands  # keep track of the bands for conveniece and checking from the outside
 
         # Used if output is 'abs_ma'
         self.n_lookback = n_lookback
@@ -89,9 +90,7 @@ class FilterBank:
         fdata = np.zeros((data.shape[0], len(self.ch_names), len(self.sos))).T
 
         for i, (k, sos) in enumerate(self.sos.items()):
-            (fdata[i, :, :], self.zis[k]) = sosfilt(
-                sos, data.T, zi=self.zis[k]
-            )
+            (fdata[i, :, :], self.zis[k]) = sosfilt(sos, data.T, zi=self.zis[k])
 
         self.ring_buffer.add_samples(fdata.T, times)
         self.n_new += data.shape[0]
@@ -99,9 +98,7 @@ class FilterBank:
     def get_data(self) -> np.ndarray:
 
         # get some extra history for the MA
-        data = self.ring_buffer.unfold_buffer()[
-            -(self.n_new + self.n_lookback) :, ...
-        ]
+        data = self.ring_buffer.unfold_buffer()[-(self.n_new + self.n_lookback) :, ...]
 
         out = self.output_transform(data)[-self.n_new :, ...]
 
@@ -113,9 +110,7 @@ def abs_moving_average(
     n_lookback: int = 5,
 ) -> np.ndarray:
 
-    kernel = (
-        np.ones((n_lookback, *([1] * len(data.shape[1:])))) * 1 / n_lookback
-    )
+    kernel = np.ones((n_lookback, *([1] * len(data.shape[1:])))) * 1 / n_lookback
 
     ma = convolve(np.abs(data), kernel, mode="constant", cval=0.0)
 
@@ -185,10 +180,7 @@ if __name__ == "__main__":
         for k, v in fb.sos.items()
     }
     xfonce = np.hstack(
-        [
-            sosfilt(fb.sos[bn], x.T, axis=1, zi=zi)[0].T
-            for bn, zi in zis.items()
-        ]
+        [sosfilt(fb.sos[bn], x.T, axis=1, zi=zi)[0].T for bn, zi in zis.items()]
     )
 
     axs[1].plot(xfonce[nstart:nend, 0], "b.-", label=fb.ch_names[0] + "_filt")

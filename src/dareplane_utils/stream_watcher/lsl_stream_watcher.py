@@ -159,7 +159,6 @@ class StreamWatcher:
             ctypes.c_byte: np.int8,
             ctypes.c_short: np.int16,
             ctypes.c_int: np.int32,
-            ctypes.c_int: np.int32,
             ctypes.c_long: np.int64,
         }
 
