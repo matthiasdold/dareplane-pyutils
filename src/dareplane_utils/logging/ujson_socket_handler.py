@@ -10,7 +10,7 @@ class UJsonSocketHandler(logging.handlers.SocketHandler):
             s = ujson.dumps({k: v for k, v in record.__dict__.items()}).encode()
 
         # In case the record contains an error message, try to convert it to str
-        except TypeError as err:
+        except TypeError:
             s = ujson.dumps(
                 {
                     k: v if isinstance(v, int) else str(v)

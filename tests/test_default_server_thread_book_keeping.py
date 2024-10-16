@@ -2,7 +2,6 @@ import socket
 import threading
 import time
 
-import psutil
 import pytest
 
 from dareplane_utils.default_server.server import DefaultServer

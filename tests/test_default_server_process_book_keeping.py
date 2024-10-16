@@ -3,7 +3,6 @@ import time
 import socket
 import psutil
 import threading
-import subprocess
 
 from tests.resources.shared import get_test_subprocess
 

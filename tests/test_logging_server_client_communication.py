@@ -1,11 +1,7 @@
-import psutil
-import time
 import subprocess
-import logging
+import time
 
-from pathlib import Path
-
-from dareplane_utils.logging.logger import get_logger
+import psutil
 
 
 class TerminationError(Exception):
@@ -13,9 +9,7 @@ class TerminationError(Exception):
 
 
 def run_logging_server() -> subprocess.Popen:
-    cmd = (
-        "python -m dareplane_utils.logging.server --logfile=dareplane_test.log"
-    )
+    cmd = "python -m dareplane_utils.logging.server --logfile=dareplane_test.log"
     return subprocess.Popen(cmd, shell=True)
 
 
@@ -23,7 +17,7 @@ def stop_process_and_children(p: psutil.Process):
     i = 0
     print(f"{p.children()=}")
     for cp in p.children():
-        process_stop_children(cp)
+        cp.terminate()
 
     try:
         print(f"{p.pid}-{p.status()=} - after closing children")
