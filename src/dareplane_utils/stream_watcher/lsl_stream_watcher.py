@@ -29,7 +29,7 @@ def get_streams_names() -> list[str]:
     return [s.name() for s in pylsl.resolve_streams()]
 
 
-def pylsl_xmlelement_to_dict(inf: pylsl.pylsl.StreamInfo) -> dict:
+def pylsl_xmlelement_to_dict(inf: pylsl.StreamInfo) -> dict:
     """
     The pylsl XMLElement is hard to investigate -> cast to a dict for
     simplicity
@@ -37,7 +37,7 @@ def pylsl_xmlelement_to_dict(inf: pylsl.pylsl.StreamInfo) -> dict:
     return xmltodict.parse(inf.as_xml())
 
 
-def get_channel_names(inf: pylsl.pylsl.StreamInfo) -> list[str]:
+def get_channel_names(inf: pylsl.StreamInfo) -> list[str]:
     d = pylsl_xmlelement_to_dict(inf)
 
     # By adding to the xml meta data structure of LSL, if we only add one
@@ -48,13 +48,10 @@ def get_channel_names(inf: pylsl.pylsl.StreamInfo) -> list[str]:
             return [d["info"]["desc"]["channels"]["channel"]["label"]]
         else:
             return [
-                ch_inf["label"]
-                for ch_inf in d["info"]["desc"]["channels"]["channel"]
+                ch_inf["label"] for ch_inf in d["info"]["desc"]["channels"]["channel"]
             ]
     except TypeError as err:
-        logger.debug(
-            f"No channel info - continue with default: ch_1, ch_2,... - {err}"
-        )
+        logger.debug(f"No channel info - continue with default: ch_1, ch_2,... - {err}")
         return [f"ch_{i + 1}" for i in range(inf.channel_count())]
 
 
@@ -136,9 +133,7 @@ class StreamWatcher:
         if self.streams[0].nominal_srate() == 0:
             n_samples = 1000
         else:
-            n_samples = int(
-                self.streams[0].nominal_srate() * self.buffer_size_s
-            )
+            n_samples = int(self.streams[0].nominal_srate() * self.buffer_size_s)
 
         self.ring_buffer = RingBuffer((n_samples, len(self.channel_names)))
 
@@ -197,9 +192,7 @@ class StreamWatcher:
 
     def update_char_p(self):
 
-        samples, times = self.inlet.pull_chunk(
-            max_samples=self.chunk_buffer_size
-        )
+        samples, times = self.inlet.pull_chunk(max_samples=self.chunk_buffer_size)
 
         if len(times) > 0:
             self.ring_buffer.add_samples(samples, times)
