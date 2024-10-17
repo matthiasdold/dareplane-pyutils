@@ -162,10 +162,15 @@ def test_data_format_derivation(fmt):
     outlet = pylsl.StreamOutlet(info)
 
     # Abort for windows as test will fail: https://github.com/labstreaminglayer/pylsl/issues/84
-    if os.name == "nt" and fmt == "int32":
-        with pytest.raises(ValueError):
-            sw = StreamWatcher(sname)
-            sw.connect_to_stream()
+    if os.name == "nt":
+        if fmt == "int32":
+            with pytest.raises(ValueError):
+                sw = StreamWatcher(sname)
+                sw.connect_to_stream()
+        if fmt == "int64":
+            with pytest.raises(NotImplementedError):
+                sw = StreamWatcher(sname)
+                sw.connect_to_stream()
     else:
         sw = StreamWatcher(sname)
         sw.connect_to_stream()
