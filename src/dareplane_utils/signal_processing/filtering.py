@@ -17,13 +17,44 @@ class FilterBufferOverflow(Exception):
 
 
 class FilterBank:
+    """
+    A class to apply multiple bandpass filters to multi-channel signal data.
+
+    Attributes
+    ----------
+    bands : dict
+        Dictionary of frequency bands to filter.
+    order : int
+        Order of the filter.
+    type : str (default: 'butter')
+        Type of filter to use. Currently only 'butter' is implemented. Using the naming convention of scipy.signal.
+    sfreq : int
+        Sampling frequency of the input signal.
+    output : str
+        Type of output transformation to apply. Options are 'abs_ma', 'signal', 'square'.
+    n_in_channels : int
+        Number of input channels.
+    filter_buffer_s : float
+        Length of the filter buffer in seconds.
+    n_lookback : int
+        Number of samples to look back for the moving average 'abs_ma' output transformation.
+
+    Methods
+    -------
+    filter(data, times)
+        Apply the filters to the input data and store the results in the ring buffer.
+
+    get_data()
+        Retrieve the filtered data from the ring buffer, applying the selected output transformation.
+    """
+
     def __init__(
         self,
         bands: dict[str, list[float, float]],
         order: int = 8,
         type: str = "butter",
         sfreq: int = 1000,
-        output: str = "abs_ma",
+        output: str = "signal",
         n_in_channels: int = 1,
         filter_buffer_s: float = 1,
         n_lookback: int = 5,
