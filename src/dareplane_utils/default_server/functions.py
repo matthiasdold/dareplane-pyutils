@@ -1,3 +1,4 @@
+import json
 import signal
 import subprocess
 import threading
@@ -5,7 +6,6 @@ import time
 from logging import Logger
 from typing import Callable
 
-import orjson
 import psutil
 
 from dareplane_utils.logging.logger import get_logger
@@ -46,11 +46,10 @@ def parse_msg(
     pcomm = split[0]
     args = split[1:-1]
     try:
-        kwargs = orjson.loads(split[-1]) if len(split) > 1 else {}
-    except orjson.JSONDecodeError as e:
+        kwargs = json.loads(split[-1]) if len(split) > 1 else {}
+    except json.JSONDecodeError as e:
         logger.error(
-            f"Could not parse json payload {msg.decode()=}: {e}, "
-            "ignoring msg!"
+            f"Could not parse json payload {msg.decode()=}: {e}, " "ignoring msg!"
         )
         return noop, (), {}  # NOOP with no args or kwargs
 

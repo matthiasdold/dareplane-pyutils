@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dareplane_utils"
-version = "0.0.9"
+version = "0.0.10"
 authors = [{name="Matthias Dold", email="matthias.dold@gmx.net"}]
 description = "Default utilities for the dareplane platform"
 readme ="README.md"
@@ -20,7 +20,6 @@ dependencies = [
   "kiwisolver >= 1.4.5",
   "matplotlib >= 3.9.0",
   "numpy >= 1.26.4",
-  "orjson >= 3.10.3",
   "packaging >= 24.0",
   "pillow >= 10.3.0",
   "pluggy >= 1.5.0",
