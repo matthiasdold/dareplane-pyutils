@@ -149,17 +149,29 @@ class StreamWatcher:
         self._define_update_method()
 
     def _adjust_buffer_data_type(self):
+
+        # -- This is kept as caveat -> always compare against the pylsl.cf_* types
+        #    using the inlet.info().channel_format()
+        # dtype_map = {
+        #    ctypes.c_char_p: "object",
+        #    ctypes.c_double: np.float64,  # could also be any int type
+        #    ctypes.c_byte: np.int8,
+        #    ctypes.c_short: np.int16,
+        #    ctypes.c_int: np.int32,
+        #    ctypes.c_longlong: np.int64,
+        # }
+
         dtype_map = {
-            ctypes.c_char_p: "object",
-            ctypes.c_double: np.float64,  # could also be any int type
-            ctypes.c_byte: np.int8,
-            ctypes.c_short: np.int16,
-            ctypes.c_int: np.int32,
-            ctypes.c_longlong: np.int64,
+            pylsl.cf_string: "object",
+            pylsl.cf_double64: np.float64,
+            pylsl.cf_int8: np.int8,
+            pylsl.cf_int16: np.int16,
+            pylsl.cf_int32: np.int32,
+            pylsl.cf_int64: np.int64,
         }
 
         # default to np.float32 << LSL default
-        dtype = dtype_map.get(self.inlet.value_type, np.float32)
+        dtype = dtype_map.get(self.inlet.info().channel_format(), np.float32)
 
         # Raise error if on Windows with int32
         if os.name == "nt" and dtype == np.int32:
