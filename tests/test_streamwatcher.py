@@ -161,39 +161,28 @@ def test_data_format_derivation(fmt):
     )
     outlet = pylsl.StreamOutlet(info)
 
-    # Abort for windows as test will fail: https://github.com/labstreaminglayer/pylsl/issues/84
-    if os.name == "nt":
-        if fmt == "int32":
-            with pytest.raises(ValueError):
-                sw = StreamWatcher(sname)
-                sw.connect_to_stream()
-        if fmt == "int64":
-            with pytest.raises(NotImplementedError):
-                sw = StreamWatcher(sname)
-                sw.connect_to_stream()
+    sw = StreamWatcher(sname)
+    sw.connect_to_stream()
+    sw.update()
+
+    time.sleep(0.1)
+
+    if fmt == "string":
+        data = [[f"mrk_{i}" for i in range(10)]] * 5
     else:
-        sw = StreamWatcher(sname)
-        sw.connect_to_stream()
-        sw.update()
+        data = np.arange(100).reshape((-1, 10)).astype(fmt_map[fmt])
 
-        time.sleep(0.1)
+    outlet.push_chunk(data)
 
-        if fmt == "string":
-            data = [[f"mrk_{i}" for i in range(10)]] * 5
-        else:
-            data = np.arange(100).reshape((-1, 10)).astype(fmt_map[fmt])
+    time.sleep(0.1)
 
-        outlet.push_chunk(data)
+    # check that the correct update method is selected
+    if fmt == "string":
+        assert sw.update == sw.update_char_p
+    else:
+        assert sw.update == sw.update_numeric
 
-        time.sleep(0.1)
+    sw.update()
 
-        # check that the correct update method is selected
-        if fmt == "string":
-            assert sw.update == sw.update_char_p
-        else:
-            assert sw.update == sw.update_numeric
-
-        sw.update()
-
-        for i, d in enumerate(data):
-            assert np.all(sw.buffer[i] == d)
+    for i, d in enumerate(data):
+        assert np.all(sw.buffer[i] == d)
