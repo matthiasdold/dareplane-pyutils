@@ -173,12 +173,6 @@ class StreamWatcher:
         # default to np.float32 << LSL default
         dtype = dtype_map.get(self.inlet.info().channel_format(), np.float32)
 
-        # Raise error if on Windows with int32
-        if os.name == "nt" and dtype == np.int32:
-            raise ValueError(
-                "Using int32 on Windows is not supported due to an open issue with pylsl. See https://github.com/labstreaminglayer/pylsl/issues/84"
-            )
-
         self.chunk_buffer = np.zeros(
             (self.chunk_buffer_size, len(self.channel_names))
         ).astype(dtype)
