@@ -205,7 +205,9 @@ class StreamWatcher:
 
     def update_char_p(self):
 
-        samples, times = self.inlet.pull_chunk(max_samples=self.chunk_buffer_size)
+        samples, times = self.inlet.pull_chunk(
+            # max_samples=self.chunk_buffer_size  -- ignore for strings (usually iregular, relatively rare, string markers), as the larger max leads to a much longer pull time. Potentially needs tuning if larger string payloads are sent.
+        )
 
         if len(times) > 0:
             self.ring_buffer.add_samples(samples, times)

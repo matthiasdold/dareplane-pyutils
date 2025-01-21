@@ -1,7 +1,7 @@
 # functions shard between test files
-import time
-import threading
 import subprocess
+import threading
+import time
 
 from dareplane_utils.default_server.server import DefaultServer
 
@@ -13,7 +13,8 @@ def get_default_server(port: int = 8080) -> DefaultServer:
 
 
 def get_test_subprocess() -> subprocess.Popen:
-    return subprocess.Popen(["python", "-m", "tests.resources.infinite_sleep"])
+    p = subprocess.Popen(["python", "-m", "tests.resources.infinite_sleep"], shell=True)
+    return p
 
 
 def get_test_thread() -> subprocess.Popen:

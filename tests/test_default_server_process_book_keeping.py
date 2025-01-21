@@ -1,15 +1,16 @@
-import pytest
-import time
 import socket
-import psutil
 import threading
+import time
 
-from tests.resources.shared import get_test_subprocess
+import psutil
+import pytest
 
 from dareplane_utils.default_server.server import DefaultServer
 from dareplane_utils.logging.logger import get_logger
+from tests.resources.shared import get_test_subprocess
 
 logger = get_logger("testlogger")
+logger.setLevel("DEBUG")
 
 # for checking which process is running at a given port, we can use netstat with e.g.
 # `netstat -anv -p tcp | grep 8080`
@@ -44,18 +45,19 @@ def test_spawning_processes_from_client(
 ):
     server_thread, stop_event, server = get_default_server_with_process_spawning
 
+    time.sleep(0.1)
+
     # Send a message to the server to spawn a process
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(("localhost", 8080))
-    client.sendall(b"STARTPROCESS")
+    client.sendall(b"STARTPROCESS;")
 
-    time.sleep(0.1)
     logger.debug(f"{server.processes=}")
 
     # the process should be registerd for book keeping
     assert len(server.processes.keys()) == 1
 
-    client.sendall(b"CLOSE")
+    client.sendall(b"CLOSE;")
     client.close()
 
 
@@ -65,7 +67,7 @@ def test_stopping_processes(get_default_server_with_process_spawning):
     # Send a message to the server to spawn a process
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(("localhost", 8080))
-    client.sendall(b"STARTPROCESS")
+    client.sendall(b"STARTPROCESS;")
 
     # the process should be registerd for book keeping
     time.sleep(0.1)  # allow for thread to process command and spawn
@@ -80,5 +82,5 @@ def test_stopping_processes(get_default_server_with_process_spawning):
     # Validate that the process was killed by checking the children
     parent_ps = psutil.Process(subp.pid)
     assert parent_ps.children() == []
-    client.sendall(b"CLOSE")
+    client.sendall(b"CLOSE;")
     client.close()
