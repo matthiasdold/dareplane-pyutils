@@ -114,10 +114,13 @@ def test_reading_string_marker(get_markers_outlet):
     sw.connect_to_stream()
     sw.update()
 
+    time.sleep(0.1)
+
     for i in range(10):
         markers_outlet.push_sample([f"Marker - {i + 1}"])
 
     time.sleep(0.1)
+
     # check that the correct update method is selected
     assert sw.update == sw.update_char_p
 
