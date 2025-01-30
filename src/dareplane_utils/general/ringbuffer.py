@@ -76,17 +76,15 @@ class RingBuffer:
             self.last_t = times[-1]
 
     def unfold_buffer(self):
-        return np.vstack(
-            [self.buffer[self.curr_i :], self.buffer[: self.curr_i]]
-        )
+        return np.vstack([self.buffer[self.curr_i :], self.buffer[: self.curr_i]])
 
     def unfold_buffer_t(self):
         # Do hstack here as the time buffer will be of dim (n,1) anyways
-        return np.hstack(
-            [self.buffer_t[self.curr_i :], self.buffer_t[: self.curr_i]]
-        )
+        return np.hstack([self.buffer_t[self.curr_i :], self.buffer_t[: self.curr_i]])
 
-    def get_insert_slices(self, len_samples: int) -> tuple[slice, slice, int]:
+    def get_insert_slices(
+        self, len_samples: int
+    ) -> tuple[list[slice], list[slice], int]:
         """Get slices mapping data from the samples to the buffer
 
         Parameters
@@ -117,8 +115,7 @@ class RingBuffer:
     def add_samples(self, samples: list, times: list):
         if len(samples) == 0 or len(times) == 0:
             self.logger.warning(
-                f"Received empty data {samples=}, {times=}, "
-                "not adding to buffer"
+                f"Received empty data {samples=}, {times=}, " "not adding to buffer"
             )
         else:
             buffer_size = self.buffer.shape[0]
@@ -138,9 +135,7 @@ class RingBuffer:
             )
 
             if len(slice_buffer) > 1:
-                self.add_split_buffer(
-                    slice_buffer, slice_samples, samples, times
-                )
+                self.add_split_buffer(slice_buffer, slice_samples, samples, times)
 
             else:
                 self.add_continuous_buffer(slice_buffer, samples, times)
