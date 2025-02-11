@@ -1,11 +1,19 @@
 import subprocess
 import time
+from logging.handlers import SocketHandler
 
 import psutil
+
+from dareplane_utils.logging.logger import get_logger
 
 
 class TerminationError(Exception):
     pass
+
+
+def test_opt_out_of_network_logging():
+    logger = get_logger("myapp", no_socket_handler=True)
+    assert not any([isinstance(h, SocketHandler) for h in logger.handlers])
 
 
 def run_logging_server() -> subprocess.Popen:

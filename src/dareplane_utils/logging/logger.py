@@ -37,8 +37,30 @@ logging.config.dictConfig(default_dareplane_config)
 
 # have this as a simple wrapper to ensure the updated config is used
 def get_logger(
-    name: str, add_console_handler: bool = False, colors: dict = colors
+    name: str,
+    add_console_handler: bool = False,
+    colors: dict = colors,
+    no_socket_handler: bool = False,  # opt out for socket handler / TCP streaming
 ) -> logging.Logger:
+    """
+    Get a configured logger.
+
+    Parameters
+    ----------
+    name : str
+        The name of the logger.
+    add_console_handler : bool, optional
+        If True, add a console handler to the logger (default is False).
+    colors : dict, optional
+        A dictionary of colors for log levels (default is `colors`).
+    no_socket_handler : bool, optional
+        If True, opt out of adding a socket handler for TCP streaming (default is False).
+
+    Returns
+    -------
+    logging.Logger
+        The configured logger.
+    """
     logger = logging.getLogger(name)
     root_logger = logging.getLogger()
 
@@ -48,6 +70,13 @@ def get_logger(
         logger.addHandler(hdl)
 
     logger.addHandler(root_logger.handlers[-1])  # add socket handler
+
+    if no_socket_handler:
+        logger.handlers = [
+            h
+            for h in logger.handlers
+            if not isinstance(h, logging.handlers.SocketHandler)
+        ]
 
     # do not propergate messages to root logger
     logger.propagate = False
