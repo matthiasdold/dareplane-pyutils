@@ -5,7 +5,12 @@ import numpy as np
 import pytest
 
 from dareplane_utils.general.event_loop import EventLoop
-from dareplane_utils.logging import get_logger
+from dareplane_utils.logging.logger import get_logger
+
+logger = get_logger(
+    "dareplane_utils_test", add_console_handler=True, no_socket_handler=True
+)
+logger.setLevel("DEBUG")
 
 
 def test_adding_non_callable_for_callback():
@@ -53,5 +58,7 @@ def test_accuracy_of_event_loop_for_different_dt(dt_s):
     ev.run()
 
     dt = np.diff(buffer)
+    logger.debug(f"{dt.mean()=}, {dt.std()=}, {np.quantile(dt, [0.01, 0.99])=}")
 
-    assert np.allclose(dt.mean() + 3 * dt.std(), dt_s, atol=dt_s)
+    assert np.round(dt.mean() - dt_s, decimals=3) == 0
+    assert abs(dt.mean() + 3 * dt.std() - dt_s) < dt_s

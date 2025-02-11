@@ -5,6 +5,12 @@ from threading import Event
 from typing import Any, Callable
 
 from dareplane_utils.general.time import sleep_s
+from dareplane_utils.logging.logger import get_logger
+
+logger = get_logger(
+    "dareplane_utils_test", add_console_handler=True, no_socket_handler=True
+)
+logger.setLevel("DEBUG")
 
 
 class EventLoop:
@@ -40,11 +46,19 @@ class EventLoop:
 
     def run(self):
         while not self.stop_event.is_set():
-            self.process_callbacks()
-            now = time.perf_counter()
-            dt_remaining = min(0, self.dt_s - (now - self.last_run_ts))
-            sleep_s(dt_remaining)
-            self.last_run_ts = now
+            dt_last = time.perf_counter() - self.last_run_ts > self.dt_s
+            if dt_last:
+                self.process_callbacks()
+
+                # check how much still needed to sleep as the callback processing
+                # might have taken significant amount of time
+                now = time.perf_counter()
+                dt_remaining = max(0, self.dt_s - (now - self.last_run_ts))
+                self.last_run_ts = now
+
+                sleep_s(dt_remaining)
+            else:
+                sleep_s(self.dt_s - dt_last)
 
     def process_callbacks(self):
 
