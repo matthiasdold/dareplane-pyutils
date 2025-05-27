@@ -130,7 +130,7 @@ def stop_process(process: subprocess.Popen):
             for ch in parent_ps.children():
                 logger.debug(f"Sending kill to child process={ch}")
                 # ch.send_signal(signal.SIGINT)
-                ch.send_signal(signal.SIGTERM)          
+                ch.send_signal(signal.SIGTERM)
         # last iteration, if it is not gone yet, kill it
         else:
             for ch in parent_ps.children():

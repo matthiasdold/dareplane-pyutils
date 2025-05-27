@@ -9,31 +9,96 @@ logger = get_logger(__name__)
 
 class RingBuffer:
     """
+    A simple numpy ring buffer for data and timestamps.
+
+    This class implements a ring buffer using numpy arrays to store data and corresponding timestamps.
+    It is designed to efficiently handle a fixed-size buffer with FIFO (First In, First Out) behavior.
+    The buffer can be used to store and retrieve data samples along with their timestamps.
 
     Attributes
     ----------
     buffer : np.ndarray
-        the data buffer
+        The data buffer.
     buffer_t : np.ndarray
-        the time buffer
+        The time buffer.
     last_t : float
-        latest time stamp
+        The latest timestamp.
     curr_i : int
-        index of the latest data point int the buffer
+        The index of the latest data point in the buffer.
     logger : logging.Logger
-        the logger used for warnings and debug messages
-
+        The logger used for warnings and debug messages.
 
     Parameters
     ----------
-    shape : tuple[int, int, ...]
-        shape of the buffer needs to be at least 2D (n_samples, n_features),
-        arbitrary further dimensions can be added
-    dtype : type
-        a numpy data type for the buffer
+    shape : tuple[int, int]
+        The shape of the buffer, which needs to be at least 2D (n_samples, n_features).
+        Arbitrary further dimensions can be added.
+    dtype : type, optional
+        A numpy data type for the buffer. Defaults to np.float32.
+
+    Examples
+    --------
+
+    >>> rb = RingBuffer(shape=(10, 3), dtype=np.float32)
+    >>> samples = [np.random.rand(3) for _ in range(5)]
+    >>> times = list(range(5))
+    >>> rb.add_samples(samples, times)
+    >>>
+    >>> print(rb.buffer)
+    [[0.6456422  0.6063579  0.46437985]
+    [0.77531135 0.12675048 0.10201751]
+    [0.05525873 0.5852236  0.09854987]
+    [0.7515863  0.20880483 0.7236128 ]
+    [0.7157382  0.55806357 0.6247236 ]
+    [0.         0.         0.        ]
+    [0.         0.         0.        ]
+    [0.         0.         0.        ]
+    [0.         0.         0.        ]
+    [0.         0.         0.        ]]
+    >>>
+    >>> print(rb.buffer_t)
+    [0. 1. 2. 3. 4. 0. 0. 0. 0. 0.]
+    >>>
+    >>> print(rb.unfold_buffer())  # most recent sample is index=-1, second to most recent index=-2, etc.
+    [[0.         0.         0.        ]
+    [0.         0.         0.        ]
+    [0.         0.         0.        ]
+    [0.         0.         0.        ]
+    [0.         0.         0.        ]
+    [0.6456422  0.6063579  0.46437985]
+    [0.77531135 0.12675048 0.10201751]
+    [0.05525873 0.5852236  0.09854987]
+    [0.7515863  0.20880483 0.7236128 ]
+    [0.7157382  0.55806357 0.6247236 ]]
+    >>>
+    >>> print(rb.unfold_buffer_t())
+    [0. 0. 0. 0. 0. 0. 1. 2. 3. 4.]
+
+
+    >>> samples2 = [np.random.rand(3) for _ in range(8)]
+    >>> times2 = list(range(8))
+    >>> rb.add_samples(samples2, times2)
+    >>> print(rb.buffer_t)
+    [5. 6. 7. 3. 4. 0. 1. 2. 3. 4.]
+    >>>
+    >>> print(rb.unfold_buffer_t())
+    [3. 4. 0. 1. 2. 3. 4. 5. 6. 7.]
+
     """
 
     def __init__(self, shape: tuple[int, int], dtype: type = np.float32):
+        """
+        Initialize the RingBuffer with a given shape and data type.
+
+        Parameters
+        ----------
+        shape : tuple[int, int]
+            The shape of the buffer, which needs to be at least 2D (n_samples, n_features).
+            Arbitrary further dimensions can be added.
+        dtype : type, optional
+            A numpy data type for the buffer. Defaults to np.float32.
+        """
+
         # Using numpy buffers
         self.buffer = np.zeros(shape, dtype=dtype)
         self.buffer_t = np.zeros(shape[0])
@@ -76,9 +141,29 @@ class RingBuffer:
             self.last_t = times[-1]
 
     def unfold_buffer(self):
+        """
+        Unfold the buffer to return the data in chronological order.
+
+        This method returns the data in the buffer in chronological order, ending with the most recent sample.
+
+        Returns
+        -------
+        np.ndarray
+            The unfolded data buffer.
+        """
         return np.vstack([self.buffer[self.curr_i :], self.buffer[: self.curr_i]])
 
     def unfold_buffer_t(self):
+        """
+        Unfold the buffer_t (time stamp buffer) to return time stamps in chronological order.
+
+        This method returns the time stamps in the buffer in chronological order, ending with the most recent time stamp.
+
+        Returns
+        -------
+        np.ndarray
+            The unfolded data buffer.
+        """
         # Do hstack here as the time buffer will be of dim (n,1) anyways
         return np.hstack([self.buffer_t[self.curr_i :], self.buffer_t[: self.curr_i]])
 
@@ -113,6 +198,8 @@ class RingBuffer:
             )
 
     def add_samples(self, samples: list, times: list):
+        """Add samples to the buffer and progress the index"""
+
         if len(samples) == 0 or len(times) == 0:
             self.logger.warning(
                 f"Received empty data {samples=}, {times=}, " "not adding to buffer"
@@ -157,3 +244,25 @@ class RingBuffer:
         """
         self.buffer[slice_buffer[0]] = samples
         self.buffer_t[slice_buffer[0]] = times
+
+
+if __name__ == "__main__":
+    rb = RingBuffer(shape=(10, 3), dtype=np.float32)
+    samples = [np.random.rand(3) for _ in range(5)]
+    times = list(range(5))
+
+    rb.add_samples(samples, times)
+
+    print(rb.buffer)
+    print(rb.buffer_t)
+    print(
+        rb.unfold_buffer()
+    )  # most recent sample is index=-1, second to most recent index=-2, etc.
+    print(rb.unfold_buffer_t())
+
+    samples2 = [np.random.rand(3) for _ in range(8)]
+    times2 = list(range(8))
+    rb.add_samples(samples2, times2)
+
+    print(rb.buffer_t)
+    print(rb.unfold_buffer_t())

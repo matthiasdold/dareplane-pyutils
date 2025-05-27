@@ -152,3 +152,10 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# currently only used for docs debugging
+_quarto.yml
+reference/
+objects.json
+_site/
+
+/.quarto/

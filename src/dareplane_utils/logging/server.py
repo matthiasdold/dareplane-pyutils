@@ -9,7 +9,7 @@ from fire import Fire
 
 from dareplane_utils.logging.logger import default_dareplane_config
 
-# NOTE: For a usuall dareplane setup, we will not have more than one
+# NOTE: For a usual Dareplane setup, we will not have more than one
 # instance of a LogRecordSocketReceiver, which is usually managed via the
 # control room module. It is still included here next to the logger and the
 # ujson_socket_handler, as it is required for unit testing and would allow
@@ -135,9 +135,7 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
         abort = 0
 
         while not abort:
-            rd, wr, ex = select.select(
-                [self.socket.fileno()], [], [], self.timeout
-            )
+            rd, wr, ex = select.select([self.socket.fileno()], [], [], self.timeout)
             if rd:
                 self.handle_request()
             abort = self.abort

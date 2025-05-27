@@ -39,6 +39,22 @@ def pylsl_xmlelement_to_dict(inf: pylsl.StreamInfo) -> dict:
 
 
 def get_channel_names(inf: pylsl.StreamInfo) -> list[str]:
+    """
+    Extract channel names from the LSL stream info.
+
+    This function parses the XML metadata of the LSL stream info to extract the channel names.
+    If the channel information is not available, it returns default channel names in the format "ch_1", "ch_2", etc.
+
+    Parameters
+    ----------
+    inf : pylsl.StreamInfo
+        The LSL stream info object containing the metadata.
+
+    Returns
+    -------
+    list[str]
+        A list of channel names extracted from the stream info.
+    """
     d = pylsl_xmlelement_to_dict(inf)
 
     # By adding to the xml meta data structure of LSL, if we only add one
@@ -187,7 +203,7 @@ class StreamWatcher:
             self.update = self.update_numeric
 
     def update_numeric(self):
-        """Look for new data and update the buffer"""
+        """Look for new data on the LSL inlet and update the buffer"""
 
         # This logic works as long as the returned samples are not too many
         # samples, times = self.inlet.pull_chunk()
@@ -204,6 +220,7 @@ class StreamWatcher:
             self.n_new += len(times)
 
     def update_char_p(self):
+        """Look for new data on the LSL inlet and update the buffer, processing for strings"""
 
         samples, times = self.inlet.pull_chunk(
             # max_samples=self.chunk_buffer_size  -- ignore for strings (usually iregular, relatively rare, string markers), as the larger max leads to a much longer pull time. Potentially needs tuning if larger string payloads are sent.

@@ -103,6 +103,34 @@ sw.unfold_buffer_t()   # sorted time stamps
         )
 ```
 
+## Event Loop
+
+A class that implements a custom event loop with precise timing.
+
+The EventLoop uses dareplane_utils.general.time.sleep_s for more precise
+sleep timing at the expense of CPU usage.
+
+Callbacks are the means of interacting with the event loop. There are two types of callbacks:
+
+- Periodic callbacks: These are executed at regular intervals.
+- One-time callbacks: These are executed once and then removed from the list of callbacks.
+  One-time callback can furthermore be scheduled to run at a specific time in the future.
+
+Callbacks can be any callable function, which gets one and only one argument, which is
+a context object, that can be of type any. This ensures that any type of input can
+be implemented.
+
+```python
+
+def no_arg_callback():
+    print("Running with no args")
+
+evloop = EventLoop(dt_s=0.1)  # process callbacks every 100ms
+
+# for a callback with no args we use lambda to blank the callback arg
+evloop.add_callback_once(lambda ctx: no_arg_callback())
+```
+
 ## TODO
 
 - [ ] channel names are only initialized on connection

@@ -15,8 +15,8 @@ def sleep_s(s: float, partial_sleep_threshold: float = 0.0005, nsteps: int = 30)
     nsteps : int, optional
         The number of steps for partial sleep, by default 30. Empirical testing showed very good accuracy for 30.
         If you want to optimize for CPU load, reduce to `nsteps` > 4.
-
     """
+
     start = time.perf_counter()
     if s >= partial_sleep_threshold:
         partial_sleep(s, start, nsteps)
