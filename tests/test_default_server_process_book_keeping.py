@@ -50,7 +50,10 @@ def test_spawning_processes_from_client(
     # Send a message to the server to spawn a process
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(("localhost", 8080))
+
+    logger.debug("Sending STARTPROCESS")
     client.sendall(b"STARTPROCESS;")
+    time.sleep(0.1)
 
     logger.debug(f"{server.processes=}")
 

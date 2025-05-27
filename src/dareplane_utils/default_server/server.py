@@ -24,8 +24,6 @@ class UnknownMsgInterpretation(Exception):
 @dataclass
 class DefaultServer:
     """
-    DefaultServer
-
     A class representing a default server used and modified by other Dareplane projects.
     This server handles incoming TCP connections, interprets messages, and manages threads and processes.
 

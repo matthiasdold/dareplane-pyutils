@@ -31,8 +31,8 @@ def test_missing_ctx_kwarg_in_callback():
     def test_foo():
         pass
 
-    with pytest.raises(AssertionError):
-        ev.add_callback(test_foo)
+    # should not lead to an error anymore, as we automatically wrap for convenience
+    ev.add_callback(test_foo)
 
     def test_foo_ok(ctx={}):
         pass
@@ -62,3 +62,6 @@ def test_accuracy_of_event_loop_for_different_dt(dt_s):
 
     assert np.round(dt.mean() - dt_s, decimals=3) == 0
     assert abs(dt.mean() + 3 * dt.std() - dt_s) < dt_s
+
+
+# TODO: add a test for the delayed callbacks

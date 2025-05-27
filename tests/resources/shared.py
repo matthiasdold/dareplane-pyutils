@@ -13,7 +13,7 @@ def get_default_server(port: int = 8080) -> DefaultServer:
 
 
 def get_test_subprocess() -> subprocess.Popen:
-    p = subprocess.Popen(["python", "-m", "tests.resources.infinite_sleep"], shell=True)
+    p = subprocess.Popen(["python", "-m", "tests.resources.infinite_sleep"])
     return p
 
 

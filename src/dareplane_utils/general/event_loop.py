@@ -46,7 +46,7 @@ class EventLoop:
     - One-time callbacks: These are executed once and then removed from the list of callbacks.
       One-time callback can furthermore be scheduled to run at a specific time in the future.
 
-    Callbacks can be any callable function, which gets at least one argument `ctx`, which is
+    Callbacks can be any callable function, which usually gets one argument `ctx` -
     a context object, that can be of type any. This ensures that any type of input can
     be implemented. See the example section for more details.
 
@@ -84,6 +84,10 @@ class EventLoop:
     >>>
     >>> evloop.run()
     Running with no args
+    >>>
+    >>> # NOTE: This example is left to explain how wrapping works. Creating a wrapper is no longer necessary
+    >>> #       if no `ctx` is an arg / kwargs, the event_loop.validate_callback() will automatically create
+    >>> #       a wrapper version for you.
 
     >>> def custom_arg_and_kwarg_callback(a, b=1, c=2):
     ...     print(f"Running with {a=}, {b=}, {c=}")
@@ -138,6 +142,7 @@ class EventLoop:
             The callback function to be added.
         """
         cb = self.validate_callback(cb)
+
         self.callbacks.append(cb)
 
     def add_callbacks(self, cbs: list[Callable]):
@@ -201,8 +206,10 @@ class EventLoop:
         """
         assert isinstance(cb, Callable), f"The provided {cb=} is not a Callable"
         spec = inspect.getfullargspec(cb)
+
         if "ctx" not in spec.args:  # make a context optional
             return lambda ctx: cb()
+
         return cb
 
     def run(self):
