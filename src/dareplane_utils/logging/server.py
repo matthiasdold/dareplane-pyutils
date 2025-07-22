@@ -60,6 +60,9 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
             if isinstance(record.msecs, str):
                 record.msecs = float(record.msecs)
 
+            if "%s" in record.msg:
+                record.msg = record.msg % record.args  # replacing %s with args for dash
+
             self.handle_log_record(record)
 
             # Example record from dash / waitress:
