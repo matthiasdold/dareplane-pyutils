@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dareplane_utils"
-version = "0.0.17"
+version = "0.0.18"
 authors = [{name="Matthias Dold", email="matthias.dold@gmx.net"}]
 description = "Default utilities for the dareplane platform"
 readme ="README.md"
