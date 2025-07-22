@@ -179,6 +179,8 @@ class DefaultServer:
 
             # if not a default command, check the pcmommand map
             if not is_default_command:
+                self.logger.debug("Interpreting non-default message")
+
                 msg = msg.replace(b"\r\n", b"")
                 # common start byte, would lead to an error in decode otherwise # noqa
                 msg = msg.replace(b"\xc2", b"")
@@ -290,19 +292,21 @@ class DefaultServer:
 
     def close_threads(self):
         # clean up potential threads
+        self.logger.debug(f"Closing threads: {self.threads.items()}")
         removed_threads = []
         for thid, (th, stop_event) in self.threads.items():
             stop_event.set()
-            self.thread_stopper(th)
+            self.thread_stopper(th, logger=self.logger)
             removed_threads.append(thid)
         for k in removed_threads:
             self.threads.pop(k, None)
 
     def close_processes(self):
         # clean up potential subprocesses
+        self.logger.debug(f"Closing processes: {self.processes.items()}")
         removed_sprocesses = []
         for spid, sp in self.processes.items():
-            self.proc_stopper(sp)
+            self.proc_stopper(sp, logger=self.logger)
             removed_sprocesses.append(spid)
         for k in removed_sprocesses:
             self.processes.pop(k, None)

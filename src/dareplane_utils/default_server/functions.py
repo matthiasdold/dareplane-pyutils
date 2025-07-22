@@ -95,7 +95,7 @@ def interpret_msg(
     return ret
 
 
-def stop_thread(thread: threading.Thread):
+def stop_thread(thread: threading.Thread, logger: Logger = logger):
     """Stopping a thread, the standard way
 
     Parameters
@@ -115,11 +115,14 @@ def stop_thread(thread: threading.Thread):
             logger.info("Closing thread before it started")
 
 
-def stop_process(process: subprocess.Popen):
+def stop_process(process: subprocess.Popen, logger: Logger = logger):
     """Close all child processes of a Popen instance"""
+
     parent_ps = psutil.Process(process.pid)
+    logger.info(f"Closing all processes of {parent_ps=}")
     max_iter = 5
     i = 0
+    j = 0
 
     # close the children
     while parent_ps and parent_ps.children() != [] and i <= max_iter:
@@ -139,12 +142,16 @@ def stop_process(process: subprocess.Popen):
 
         i += 1
         logger.debug(f"Remaining childern={parent_ps.children()}")
-    #
-    # while psutil.pid_exists(parent_ps.pid) and j <= max_iter:
-    #     parent_ps.send_signal(signal.SIGINT)
-    #     if j > 0:
-    #         time.sleep(0.2)
-    #
-    #     logger.debug(f"Sent SIGINT to parent={parent_ps.pid}")
-    #
-    # parent_ps.kill()
+
+    while (
+        psutil.pid_exists(parent_ps.pid)
+        and parent_ps.status() != "zombie"
+        and j <= max_iter
+    ):
+        parent_ps.send_signal(signal.SIGINT)
+        logger.debug(f"Sent SIGINT to parent={parent_ps.pid}")
+        if j > 0:
+            time.sleep(0.2)
+        j += 1
+
+    parent_ps.kill()
