@@ -21,10 +21,10 @@ class UJsonSocketHandler(logging.handlers.SocketHandler):
     -------
     makePickle(record: logging.LogRecord) -> bytes
         Serialize the log record to a JSON-formatted byte string.
-    makeSocket(timeout=0.1) -> socket.socket
+    makeSocket(timeout=0.3) -> socket.socket
         Create a socket with a specified timeout.
     """
-    def makeSocket(self, timeout=0.1):
+    def makeSocket(self, timeout=0.3):
         sock = super().makeSocket(timeout=timeout)
         return sock
     
