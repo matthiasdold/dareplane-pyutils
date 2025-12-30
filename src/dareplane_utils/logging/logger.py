@@ -20,7 +20,7 @@ default_dareplane_config = {
         "socket": {
             "formatter": "dareplane_standard",
             "class": "dareplane_utils.logging.ujson_socket_handler.UJsonSocketHandler",
-            "host": "localhost",
+            "host": "127.0.0.1",
             "port": 9020,
         },
     },
@@ -65,11 +65,12 @@ def get_logger(
     root_logger = logging.getLogger()
 
     if add_console_handler:
-        hdl = root_logger.handlers[0]
-        hdl.formatter.log_colors.update(colors)
-        logger.addHandler(hdl)
+        consol_handler = [h for h in root_logger.handlers if isinstance(h, logging.StreamHandler)][0]
+        consol_handler.formatter.log_colors.update(colors)
+        logger.addHandler(consol_handler)  # add console handler
 
-    logger.addHandler(root_logger.handlers[-1])  # add socket handler
+    socket_handler = [h for h in root_logger.handlers if isinstance(h, logging.handlers.SocketHandler)][0]
+    logger.addHandler(socket_handler)  # add socket handler
 
     if no_socket_handler:
         logger.handlers = [
