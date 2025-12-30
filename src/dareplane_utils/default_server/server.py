@@ -145,7 +145,7 @@ class DefaultServer:
                 except ConnectionResetError as err:
                     self.logger.info("Connection was reset by host- stopping the server")
                     self.is_listening = False
-                    return
+                    return err
                 except Exception as err:
                     self.logger.error(f"Caught error {err=}")
                     self.is_listening = False
@@ -416,7 +416,6 @@ class DefaultCallbackServer(DefaultServer):
                     self.logger.error(f"Caught error {err=}")
                     self.is_listening = False
                     raise err
-                    pass
 
         self.is_listening = False
 
