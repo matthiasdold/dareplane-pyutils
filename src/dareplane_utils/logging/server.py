@@ -32,7 +32,12 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
         according to whatever policy is configured locally.
         """
         while True:
-            chunk = self.connection.recv(4)
+            try:
+                chunk = self.connection.recv(4)
+            except ConnectionResetError:
+                # Remote host closed the connection
+                break
+
             if len(chunk) < 4:
                 break
 
