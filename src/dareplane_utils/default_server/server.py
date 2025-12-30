@@ -142,6 +142,10 @@ class DefaultServer:
                     self.current_conn.sendall(
                         f"Was unable to decode {msg=} to ascii\n".encode()  # type: ignore
                     )
+                except ConnectionResetError as err:
+                    self.logger.info("Connection was reset by host- stopping the server")
+                    self.is_listening = False
+                    return
                 except Exception as err:
                     self.logger.error(f"Caught error {err=}")
                     self.is_listening = False
@@ -412,6 +416,7 @@ class DefaultCallbackServer(DefaultServer):
                     self.logger.error(f"Caught error {err=}")
                     self.is_listening = False
                     raise err
+                    pass
 
         self.is_listening = False
 
