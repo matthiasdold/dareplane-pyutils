@@ -65,11 +65,15 @@ def get_logger(
     root_logger = logging.getLogger()
 
     if add_console_handler:
-        consol_handler = [h for h in root_logger.handlers if isinstance(h, logging.StreamHandler)][0]
+        consol_handler = [
+            h for h in root_logger.handlers if isinstance(h, logging.StreamHandler)
+        ][0]
         consol_handler.formatter.log_colors.update(colors)
         logger.addHandler(consol_handler)  # add console handler
 
-    socket_handler = [h for h in root_logger.handlers if isinstance(h, logging.handlers.SocketHandler)][0]
+    socket_handler = [
+        h for h in root_logger.handlers if isinstance(h, logging.handlers.SocketHandler)
+    ][0]
     logger.addHandler(socket_handler)  # add socket handler
 
     if no_socket_handler:

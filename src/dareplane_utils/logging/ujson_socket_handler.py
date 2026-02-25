@@ -21,13 +21,14 @@ class UJsonSocketHandler(logging.handlers.SocketHandler):
     -------
     makePickle(record: logging.LogRecord) -> bytes
         Serialize the log record to a JSON-formatted byte string.
-    makeSocket(timeout=0.3) -> socket.socket
+    makeSocket(timeout=1) -> socket.socket
         Create a socket with a specified timeout.
     """
-    def makeSocket(self, timeout=0.3):
+
+    def makeSocket(self, timeout=1):
         sock = super().makeSocket(timeout=timeout)
         return sock
-    
+
     def makePickle(self, record: logging.LogRecord) -> bytes:
         try:
             s = ujson.dumps({k: v for k, v in record.__dict__.items()}).encode()

@@ -1,5 +1,6 @@
 import subprocess
 import time
+from pathlib import Path
 from logging.handlers import SocketHandler
 
 import psutil
@@ -41,73 +42,81 @@ def stop_process_and_children(p: psutil.Process):
         pass
 
 
-# TODO: Somehow this test runs find if it is manually executed (e.g. in an ipython repl)
-# but does not work if run via `pytest`. -> Fix this
+def test_logging_server():
+    testf = Path("dareplane_test.log")
 
-# def test_logging_server():
-#     testf = Path("dareplane_test.log")
-#
-#     try:
-#         with run_logging_server() as p_server:
-#             time.sleep(0.3)
-#
-#             logger1 = get_logger("myapp.area1")
-#             logger2 = get_logger("myapp.area2")
-#             logger1.setLevel(logging.DEBUG)
-#             logger2.setLevel(logging.DEBUG)
-#
-#             logger1.debug("debug1")
-#             logger1.info("info1")
-#             logger1.warning("warning1")
-#             logger1.error("error1")
-#             logger2.debug("debug2")
-#             logger2.info("info2")
-#             logger2.warning("warning2")
-#             logger2.error("error2")
-#
-#             time.sleep(0.5)
-#             # Check last lines in log file
-#             with open(testf, "r") as fl:
-#                 ll = fl.readlines()
-#
-#             # delete the loggers to get rid of file handlers, which might block
-#             # a proper cleanup
-#             del logger1, logger2
-#
-#             stop_process_and_children(psutil.Process(p_server.pid))
-#
-#         assert all(
-#             [
-#                 e in "".join(ll[:4])
-#                 for e in [
-#                     "debug1",
-#                     "info1",
-#                     "warning1",
-#                     "error1",
-#                 ]
-#             ]
-#         ), f"Log lines do not match expectation for logger1, got {ll[:4]}"
-#
-#         assert all(
-#             [
-#                 e in "".join(ll[4:])
-#                 for e in [
-#                     "debug2",
-#                     "info2",
-#                     "warning2",
-#                     "error2",
-#                 ]
-#             ]
-#         ), f"Log lines do not match expectation for logger2, got {ll[4:]}"
-#
-#     finally:
-#         try:
-#             testf.unlink()
-#         except PermissionError as err:
-#             print(f"Could not delete test file {testf}, got {err}")
-#         except FileNotFoundError as err:
-#             print(f"Log file did not exits - got {err}")
-#
+    try:
+        with run_logging_server() as p_server:
+            print(f"Started logging server with PID {p_server.pid}")
+            time.sleep(0.3)
+
+            print("Initializing loggers and sending messages")
+            logger1 = get_logger("myapp.area1")
+            print("Initialized first logger")
+            logger2 = get_logger("myapp.area2")
+            print("Initialized second logger")
+            print("Setting log level")
+            logger1.setLevel(10)
+            logger2.setLevel(10)
+            print("Log level set")
+
+            print("Sending messages")
+            logger1.debug("debug1")
+            logger1.info("info1")
+            logger1.warning("warning1")
+            logger1.error("error1")
+            logger2.debug("debug2")
+            logger2.info("info2")
+            logger2.warning("warning2")
+            logger2.error("error2")
+            print("Messages sent")
+
+            time.sleep(0.5)
+            # Check last lines in log file
+            print("Reading the logfile")
+            with open(testf, "r") as fl:
+                ll = fl.readlines()
+
+            # delete the loggers to get rid of file handlers, which might block
+            # a proper cleanup
+            print("Deleting loggers and sending messages")
+            del logger1, logger2
+
+            print("Stopping logging server")
+            stop_process_and_children(psutil.Process(p_server.pid))
+
+        assert all(
+            [
+                e in "".join(ll[:4])
+                for e in [
+                    "debug1",
+                    "info1",
+                    "warning1",
+                    "error1",
+                ]
+            ]
+        ), f"Log lines do not match expectation for logger1, got {ll[:4]}"
+
+        assert all(
+            [
+                e in "".join(ll[4:])
+                for e in [
+                    "debug2",
+                    "info2",
+                    "warning2",
+                    "error2",
+                ]
+            ]
+        ), f"Log lines do not match expectation for logger2, got {ll[4:]}"
+
+    finally:
+        try:
+            testf.unlink()
+        except PermissionError as err:
+            print(f"Could not delete test file {testf}, got {err}")
+        except FileNotFoundError as err:
+            print(f"Log file did not exits - got {err}")
+
 
 # --------------------- plain performance tests ----------------------
 # def mytest():
