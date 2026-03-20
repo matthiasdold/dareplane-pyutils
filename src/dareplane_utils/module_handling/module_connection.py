@@ -13,7 +13,6 @@ class ModuleConnection:
     launcher: Launcher
     communicator: Communicator | None = None
     pcomms: list[str] = field(default_factory=list)
-    module_kind: str = ""
     process: Popen | None = None
 
     @property
