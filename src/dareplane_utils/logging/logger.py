@@ -1,5 +1,6 @@
 import logging
 import logging.config
+import warnings
 
 default_dareplane_config = {
     "version": 1,
@@ -81,13 +82,24 @@ def get_logger(
     ]
     if socket_handlers:
         socket_handler = socket_handlers[0]
-        # Close existing socket to force reconnection on next log
-        if hasattr(socket_handler, 'sock') and socket_handler.sock:
+        
+        # Warn once if socket handler cannot connect (helps debugging)
+        if not hasattr(socket_handler, '_connection_warned'):
             try:
-                socket_handler.sock.close()
-            except:
-                pass
-            socket_handler.sock = None
+                # Test if we can create a socket connection
+                if socket_handler.sock is None:
+                    test_sock = socket_handler.makeSocket()
+                    if test_sock:
+                        test_sock.close()
+            except (ConnectionRefusedError, OSError, Exception):
+                warnings.warn(
+                    f"Logging server not available at {socket_handler.host}:{socket_handler.port}. "
+                    "Network logs will be lost. Logs will only appear in console.",
+                    RuntimeWarning,
+                    stacklevel=2
+                )
+            socket_handler._connection_warned = True
+        
         logger.addHandler(socket_handler)  # add socket handler
 
     if no_socket_handler:

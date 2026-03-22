@@ -16,7 +16,13 @@ class TerminationError(Exception):
 
 @pytest.fixture
 def reset_logging():
-    """Reset logging state to ensure clean socket handler for server tests."""
+    """Reset logging state to ensure clean socket handler for server tests.
+    
+    This fixture is necessary because:
+    1. Socket handlers persist across tests in the same process
+    2. A failed connection attempt (no server) leaves the handler in a bad state
+    3. We need to recreate handlers to test actual server communication
+    """
     # Close and remove all socket handlers from root logger
     root_logger = logging.getLogger()
     for handler in root_logger.handlers[:]:
@@ -33,6 +39,11 @@ def reset_logging():
     # Reset the config applied flag so logging can be reconfigured
     import dareplane_utils.logging.logger as logger_module
     logger_module._config_applied = False
+    
+    # Clear any connection warnings to test fresh connections
+    for handler in root_logger.handlers[:]:
+        if isinstance(handler, SocketHandler) and hasattr(handler, '_connection_warned'):
+            delattr(handler, '_connection_warned')
     
     yield
     
