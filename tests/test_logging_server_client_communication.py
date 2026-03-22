@@ -1,15 +1,50 @@
+import logging
 import subprocess
 import time
 from pathlib import Path
 from logging.handlers import SocketHandler
 
 import psutil
+import pytest
 
 from dareplane_utils.logging.logger import get_logger
 
 
 class TerminationError(Exception):
     pass
+
+
+@pytest.fixture
+def reset_logging():
+    """Reset logging state to ensure clean socket handler for server tests."""
+    # Close and remove all socket handlers from root logger
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        if isinstance(handler, SocketHandler):
+            if hasattr(handler, 'sock') and handler.sock:
+                try:
+                    handler.sock.close()
+                except:
+                    pass
+                handler.sock = None
+            handler.close()
+            root_logger.removeHandler(handler)
+    
+    # Reset the config applied flag so logging can be reconfigured
+    import dareplane_utils.logging.logger as logger_module
+    logger_module._config_applied = False
+    
+    yield
+    
+    # Cleanup after test
+    for handler in root_logger.handlers[:]:
+        if isinstance(handler, SocketHandler):
+            if hasattr(handler, 'sock') and handler.sock:
+                try:
+                    handler.sock.close()
+                except:
+                    pass
+            handler.close()
 
 
 def test_opt_out_of_network_logging():
@@ -42,7 +77,7 @@ def stop_process_and_children(p: psutil.Process):
         pass
 
 
-def test_logging_server():
+def test_logging_server(reset_logging):
     testf = Path("dareplane_test.log")
 
     try:

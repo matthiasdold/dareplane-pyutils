@@ -32,7 +32,7 @@ default_dareplane_config = {
 # overwriting defaults
 colors = {"DEBUG": "cyan"}
 
-logging.config.dictConfig(default_dareplane_config)
+_config_applied = False
 
 
 # have this as a simple wrapper to ensure the updated config is used
@@ -61,6 +61,11 @@ def get_logger(
     logging.Logger
         The configured logger.
     """
+    global _config_applied
+    if not _config_applied:
+        logging.config.dictConfig(default_dareplane_config)
+        _config_applied = True
+    
     logger = logging.getLogger(name)
     root_logger = logging.getLogger()
 
@@ -71,10 +76,19 @@ def get_logger(
         consol_handler.formatter.log_colors.update(colors)
         logger.addHandler(consol_handler)  # add console handler
 
-    socket_handler = [
+    socket_handlers = [
         h for h in root_logger.handlers if isinstance(h, logging.handlers.SocketHandler)
-    ][0]
-    logger.addHandler(socket_handler)  # add socket handler
+    ]
+    if socket_handlers:
+        socket_handler = socket_handlers[0]
+        # Close existing socket to force reconnection on next log
+        if hasattr(socket_handler, 'sock') and socket_handler.sock:
+            try:
+                socket_handler.sock.close()
+            except:
+                pass
+            socket_handler.sock = None
+        logger.addHandler(socket_handler)  # add socket handler
 
     if no_socket_handler:
         logger.handlers = [
