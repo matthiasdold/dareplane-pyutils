@@ -17,7 +17,7 @@ class TerminationError(Exception):
 @pytest.fixture
 def reset_logging():
     """Reset logging state to ensure clean socket handler for server tests.
-    
+
     This fixture is necessary because:
     1. Socket handlers persist across tests in the same process
     2. A failed connection attempt (no server) leaves the handler in a bad state
@@ -27,7 +27,7 @@ def reset_logging():
     root_logger = logging.getLogger()
     for handler in root_logger.handlers[:]:
         if isinstance(handler, SocketHandler):
-            if hasattr(handler, 'sock') and handler.sock:
+            if hasattr(handler, "sock") and handler.sock:
                 try:
                     handler.sock.close()
                 except:
@@ -35,22 +35,25 @@ def reset_logging():
                 handler.sock = None
             handler.close()
             root_logger.removeHandler(handler)
-    
+
     # Reset the config applied flag so logging can be reconfigured
     import dareplane_utils.logging.logger as logger_module
+
     logger_module._config_applied = False
-    
+
     # Clear any connection warnings to test fresh connections
     for handler in root_logger.handlers[:]:
-        if isinstance(handler, SocketHandler) and hasattr(handler, '_connection_warned'):
-            delattr(handler, '_connection_warned')
-    
+        if isinstance(handler, SocketHandler) and hasattr(
+            handler, "_connection_warned"
+        ):
+            delattr(handler, "_connection_warned")
+
     yield
-    
+
     # Cleanup after test
     for handler in root_logger.handlers[:]:
         if isinstance(handler, SocketHandler):
-            if hasattr(handler, 'sock') and handler.sock:
+            if hasattr(handler, "sock") and handler.sock:
                 try:
                     handler.sock.close()
                 except:
@@ -94,7 +97,7 @@ def test_logging_server(reset_logging):
     try:
         with run_logging_server() as p_server:
             print(f"Started logging server with PID {p_server.pid}")
-            time.sleep(0.3)
+            time.sleep(1)
 
             print("Initializing loggers and sending messages")
             logger1 = get_logger("myapp.area1")
@@ -117,7 +120,7 @@ def test_logging_server(reset_logging):
             logger2.error("error2")
             print("Messages sent")
 
-            time.sleep(0.5)
+            time.sleep(1)
             # Check last lines in log file
             print("Reading the logfile")
             with open(testf, "r") as fl:
