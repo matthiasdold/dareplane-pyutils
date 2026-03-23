@@ -12,14 +12,6 @@ class ModuleConnection:
     name: str
     launcher: Launcher
     communicator: Communicator | None = None
-    pcomms: list[str] = field(default_factory=list)
-    process: Popen | None = None
-
-    @property
-    def socket_c(self):
-        if self.communicator and hasattr(self.communicator, "socket_c"):
-            return self.communicator.socket_c
-        return None
 
     def start_module_server(self):
         self.process = self.launcher.launch()
@@ -46,16 +38,11 @@ class ModuleConnection:
             self.launcher.terminate(self.process)
             self.process = None
 
-    def get_pcommands(self):
-        if self.socket_c is None:
-            return
-
-        self.socket_c.sendall(b"GET_PCOMMS")
-        time.sleep(0.1)
-        msg = self.socket_c.recv(2048 * 8)
-        decoded = msg.decode().strip()
-        if decoded:
-            self.pcomms = decoded.split("|")
+    def send_message(self, msg: bytes):
+        if self.communicator:
+            self.communicator.send(msg)
+        else:
+            raise ConnectionError(f"Cannot send message to module {self.name=} because it has no communicator")
     
     def start(self):
         """Start the module and establish communication"""
