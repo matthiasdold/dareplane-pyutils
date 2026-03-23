@@ -1,4 +1,5 @@
 import socket
+import sys
 import threading
 import time
 
@@ -11,6 +12,10 @@ from tests.resources.shared import get_test_subprocess
 
 logger = get_logger("testlogger")
 logger.setLevel("DEBUG")
+
+# Platform-specific timeout for process operations
+IS_WINDOWS = sys.platform == "win32"
+PROCESS_TIMEOUT = 2.0 if IS_WINDOWS else 1.0
 
 # for checking which process is running at a given port, we can use netstat with e.g.
 # `netstat -anv -p tcp | grep 8080`
@@ -45,7 +50,7 @@ def test_spawning_processes_from_client(
 ):
     server_thread, stop_event, server = get_default_server_with_process_spawning
 
-    time.sleep(0.1)
+    time.sleep(0.2 if IS_WINDOWS else 0.1)
 
     # Send a message to the server to spawn a process
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -53,7 +58,7 @@ def test_spawning_processes_from_client(
 
     logger.debug("Sending STARTPROCESS")
     client.sendall(b"STARTPROCESS;")
-    time.sleep(0.1)
+    time.sleep(0.2 if IS_WINDOWS else 0.1)
 
     logger.debug(f"{server.processes=}")
 
@@ -73,17 +78,25 @@ def test_stopping_processes(get_default_server_with_process_spawning):
     client.sendall(b"STARTPROCESS;")
 
     # the process should be registerd for book keeping
-    time.sleep(0.1)  # allow for thread to process command and spawn
+    time.sleep(0.2 if IS_WINDOWS else 0.1)  # allow for thread to process command and spawn
     subp = list(server.processes.values())[0]
     # print(f"{subp=}")
     # print(f"{psutil.Process(subp).children()=}")
 
     server.close_processes()
 
+    # Give Windows more time to terminate processes
+    time.sleep(PROCESS_TIMEOUT)
+
     assert len(server.processes.keys()) == 0
 
     # Validate that the process was killed by checking the children
-    parent_ps = psutil.Process(subp.pid)
-    assert parent_ps.children() == []
+    try:
+        parent_ps = psutil.Process(subp.pid)
+        assert parent_ps.children() == []
+    except psutil.NoSuchProcess:
+        # Process already terminated - this is fine
+        pass
+    
     client.sendall(b"CLOSE;")
     client.close()

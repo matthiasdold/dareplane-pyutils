@@ -34,7 +34,12 @@ class UJsonSocketHandler(logging.handlers.SocketHandler):
             s = ujson.dumps({k: v for k, v in record.__dict__.items()}).encode()
 
         # In case the record contains an error message, try to convert it to str
-        except TypeError:
+        except TypeError as e:
+            # Log the serialization issue for debugging
+            fallback_logger = logging.getLogger(__name__)
+            fallback_logger.debug(
+                f"Failed to serialize log record with ujson, converting values to strings: {e}"
+            )
             s = ujson.dumps(
                 {
                     k: v if isinstance(v, int) else str(v)
