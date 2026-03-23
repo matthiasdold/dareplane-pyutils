@@ -69,6 +69,7 @@ def test_accuracy_of_event_loop_for_different_dt(dt_s):
     # Windows Python 3.10 has poor timer resolution (~15.6ms minimum)
     # Skip precise timing assertions for this configuration
     if IS_WINDOWS_PY310:
+        accuracy_decimals = 2
         if dt_s < 0.01:
             logger.warning(
                 f"Skipping precise timing assertion for Windows Python 3.10 with dt_s={dt_s}. "
@@ -77,8 +78,6 @@ def test_accuracy_of_event_loop_for_different_dt(dt_s):
             pytest.skip(
                 "Windows Python 3.10 has insufficient timer resolution for sub-10ms intervals"
             )
-        elif dt_s == 0.01:
-            accuracy_decimals = 2
 
     assert np.round(dt.mean() - dt_s, decimals=accuracy_decimals) == 0
     assert abs(dt.mean() + 3 * dt.std() - dt_s) < dt_s
