@@ -64,19 +64,23 @@ def test_accuracy_of_event_loop_for_different_dt(dt_s):
 
     dt = np.diff(buffer)
     logger.debug(f"{dt.mean()=}, {dt.std()=}, {np.quantile(dt, [0.01, 0.99])=}")
+    accuracy_decimals = 3
 
     # Windows Python 3.10 has poor timer resolution (~15.6ms minimum)
     # Skip precise timing assertions for this configuration
-    if IS_WINDOWS_PY310 and dt_s <= 0.01:
-        logger.warning(
-            f"Skipping precise timing assertion for Windows Python 3.10 with dt_s={dt_s}. "
-            f"Got mean={dt.mean():.6f}s instead of {dt_s}s due to poor timer resolution."
-        )
-        pytest.skip(
-            "Windows Python 3.10 has insufficient timer resolution for sub-10ms intervals"
-        )
+    if IS_WINDOWS_PY310:
+        if dt_s < 0.01:
+            logger.warning(
+                f"Skipping precise timing assertion for Windows Python 3.10 with dt_s={dt_s}. "
+                f"Got mean={dt.mean():.6f}s instead of {dt_s}s due to poor timer resolution."
+            )
+            pytest.skip(
+                "Windows Python 3.10 has insufficient timer resolution for sub-10ms intervals"
+            )
+        elif dt_s == 0.01:
+            accuracy_decimals = 2
 
-    assert np.round(dt.mean() - dt_s, decimals=3) == 0
+    assert np.round(dt.mean() - dt_s, decimals=accuracy_decimals) == 0
     assert abs(dt.mean() + 3 * dt.std() - dt_s) < dt_s
 
 
