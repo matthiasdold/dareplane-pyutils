@@ -10,16 +10,28 @@ import psutil
 
 
 class Launcher(ABC):
-    """Base class for launching different types of processes"""
+    """Base class for launching different types of processes."""
     
     @abstractmethod
     def launch(self) -> Popen:
-        """Launch the process, return Popen"""
+        """Launch the process.
+
+        Returns
+        -------
+        subprocess.Popen
+            Handle to the launched process.
+        """
         pass
     
     @abstractmethod
     def terminate(self, process: Popen) -> None:
-        """Clean up the process"""
+        """Terminate and clean up a launched process.
+
+        Parameters
+        ----------
+        process : subprocess.Popen
+            Process handle to terminate.
+        """
         pass
 
 
@@ -32,14 +44,21 @@ class PythonLauncher(Launcher):
         args: list[str] | None = None,
         kwargs: dict | None = None,
     ):
-        """Launch a Python module as a subprocess
-        
-        Args:
-            entry_point: Python module entry point for `python -m <entry_point>`
-            cwd: Working directory for launching the process
-            executable: Python executable to use (default: current Python). Can be a path to a specific Python interpreter or environment.
-            args: Additional positional arguments to pass to the module invocation
-            kwargs: Additional keyword arguments to pass as --key=value
+        """Initialize a launcher for Python module subprocesses.
+
+        Parameters
+        ----------
+        entry_point : str
+            Python module entry point for ``python -m <entry_point>``.
+        cwd : pathlib.Path
+            Working directory used when launching the subprocess.
+        executable : str, optional
+            Python executable to use. Defaults to the current interpreter.
+            This can be a path to a specific Python environment.
+        args : list of str or None, optional
+            Additional positional arguments passed to module invocation.
+        kwargs : dict or None, optional
+            Additional keyword arguments passed as ``--key=value``.
         """
         self.executable = executable
         self.entry_point = entry_point
@@ -75,11 +94,17 @@ class PythonLauncher(Launcher):
 
 class ExeLauncher(Launcher):
     def __init__(self, exe_path: Path, args: list | None = None, cwd: Path | None = None):
-        """Launch a generic executable as a subprocess
-        
-        Args:
-            exe_path: Path to the executable to launch
-            args: List of arguments to pass to the executable
+        """Initialize a launcher for generic executables.
+
+        Parameters
+        ----------
+        exe_path : pathlib.Path
+            Path to the executable to launch.
+        args : list or None, optional
+            Arguments passed to the executable.
+        cwd : pathlib.Path or None, optional
+            Working directory for the subprocess. If ``None``, the current
+            process working directory is used.
         """
         self.exe_path = exe_path
         self.args = args or []
@@ -98,8 +123,14 @@ class ExeLauncher(Launcher):
         if process:
             close_process_and_child_processes(process)
     
-def close_process_and_child_processes(process: subprocess.Popen) -> int:
-    """Close a process and its child processes"""
+def close_process_and_child_processes(process: subprocess.Popen) -> None:
+    """Close a process and its child processes.
+
+    Parameters
+    ----------
+    process : subprocess.Popen
+        Parent process to terminate.
+    """
     try:
         parent_ps = psutil.Process(process.pid)
     except psutil.NoSuchProcess:
@@ -133,5 +164,3 @@ def close_process_and_child_processes(process: subprocess.Popen) -> int:
         parent_ps.kill()
     except:
         pass
-    return 0
-
