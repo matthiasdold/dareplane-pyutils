@@ -3,7 +3,7 @@ from subprocess import Popen
 from pathlib import Path
 import os
 import subprocess
-from time import time
+import time
 import sys
 
 import psutil
