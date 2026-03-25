@@ -24,7 +24,7 @@ class ModuleConnection:
                     # If connection failed because host process is not running, give a more specific error
                     if self.process is not None and self.process.poll() is not None:
                         raise ConnectionRefusedError(
-                            f"Cannot connect to module {self.name=} at {self.ip}:{self.port}. Host process not running."
+                            f"Cannot connect to module {self.name=}. Host process not running."
                         )
                     else:
                         raise e
