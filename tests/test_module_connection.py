@@ -71,3 +71,32 @@ def test_module_connection_cleanup():
 
         # If the process is still alive, kill it to avoid leaving a dangling process
         proc.kill()
+
+
+def test_python_connection_with_args_and_kwargs():
+    port = 8089
+    cmd_name = "CONFIGURABLESERVERTEST"
+
+    # Create a module connection with the configurable server as the target, passing in args and kwargs to the launcher
+    launcher = PythonLauncher(
+        entry_point="tests.resources.configurable_server",
+        cwd=Path(__file__).parent.parent,
+        args=[str(port), "127.0.0.1"],
+        kwargs={"command_name": cmd_name},
+    )
+    communicator = SocketCommunicator(name="test_communicator", ip="127.0.0.1", port=port)
+
+    conn = ModuleConnection(
+        name="test_connection",
+        launcher=launcher,
+        communicator=communicator,
+    )
+    conn.start()
+    time.sleep(2)
+
+    conn.send_message(b"GET_PCOMMS")
+    pcomms = conn.receive_message(size=2048).decode()
+
+    assert cmd_name in pcomms
+
+    conn.stop()
