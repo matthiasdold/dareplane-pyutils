@@ -39,7 +39,7 @@ class PythonLauncher(Launcher):
     def __init__(
         self,
         entry_point: str,
-        cwd: Path,
+        cwd: Path | str,
         executable: str = sys.executable,
         args: list[str] | None = None,
         kwargs: dict | None = None,
@@ -50,7 +50,7 @@ class PythonLauncher(Launcher):
         ----------
         entry_point : str
             Python module entry point for ``python -m <entry_point>``.
-        cwd : pathlib.Path
+        cwd : pathlib.Path or str
             Working directory used when launching the subprocess.
         executable : str, optional
             Python executable to use. Defaults to the current interpreter.
@@ -64,6 +64,8 @@ class PythonLauncher(Launcher):
         self.entry_point = entry_point
         self.args = args or []
         self.kwargs = kwargs or {}
+        if isinstance(cwd, str):
+            cwd = Path(cwd)
         self.cwd = cwd
     
     def launch(self) -> Popen:
