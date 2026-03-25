@@ -2,7 +2,6 @@ import subprocess
 import time
 from pathlib import Path
 from logging.handlers import SocketHandler
-
 import psutil
 
 from dareplane_utils.logging.logger import get_logger
@@ -11,15 +10,14 @@ from dareplane_utils.logging.logger import get_logger
 class TerminationError(Exception):
     pass
 
-
 def test_opt_out_of_network_logging():
     logger = get_logger("myapp", no_socket_handler=True)
     assert not any([isinstance(h, SocketHandler) for h in logger.handlers])
 
 
 def run_logging_server() -> subprocess.Popen:
-    cmd = "python -m dareplane_utils.logging.server --logfile=dareplane_test.log"
-    return subprocess.Popen(cmd, shell=True)
+    cmd = ["python", "-m", "dareplane_utils.logging.server", "--logfile=dareplane_test.log"]
+    return subprocess.Popen(cmd)
 
 
 def stop_process_and_children(p: psutil.Process):
@@ -48,7 +46,7 @@ def test_logging_server():
     try:
         with run_logging_server() as p_server:
             print(f"Started logging server with PID {p_server.pid}")
-            time.sleep(0.3)
+            time.sleep(1.0)
 
             print("Initializing loggers and sending messages")
             logger1 = get_logger("myapp.area1")
@@ -65,6 +63,7 @@ def test_logging_server():
             logger1.info("info1")
             logger1.warning("warning1")
             logger1.error("error1")
+            time.sleep(0.1)
             logger2.debug("debug2")
             logger2.info("info2")
             logger2.warning("warning2")
