@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from dataclasses import field
-import time
 from subprocess import Popen
+import warnings
 
 from dareplane_utils.module_handling.launcher import Launcher
 from dareplane_utils.module_handling.communication import Communicator, SocketCommunicator
@@ -12,8 +12,16 @@ class ModuleConnection:
     name: str
     launcher: Launcher
     communicator: Communicator | None = None
+    process: Popen | None = None
 
     def start_module_server(self):
+        if self.process is not None and self.process.poll() is None:
+            warnings.warn(
+                    f"Module {self.name=} is already running with pid {self.process.pid}. Not launching again.",
+                    RuntimeWarning,
+                    stacklevel=2
+                )
+            return
         self.process = self.launcher.launch()
 
     def connect_to_module(self):
