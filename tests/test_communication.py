@@ -32,7 +32,7 @@ def wait_for_port(host: str = "127.0.0.1", port: int = 9020, timeout: float = 5.
 @pytest.fixture
 def server_process() -> Iterator[subprocess.Popen]:
     proc = subprocess.Popen(
-        [sys.executable, "-m", "tests.resources.tserver"],
+        [sys.executable, "-m", "tests.resources.test_server"],
     )
     # Wait for the server to be ready
     try:
@@ -70,7 +70,7 @@ def test_connection_to_server(server_process):
 @pytest.fixture
 def slow_server_process() -> Iterator[subprocess.Popen]:
     proc = subprocess.Popen(
-        [sys.executable, "-m", "tests.resources.slow_server"],
+        [sys.executable, "-m", "tests.resources.slow_test_server"],
     )
     
     yield proc

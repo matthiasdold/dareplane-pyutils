@@ -4,7 +4,7 @@ import time
 
 def test_python_launcher():
     launcher = PythonLauncher(
-        entry_point="tests.resources.tserver",
+        entry_point="tests.resources.test_server",
         cwd=Path(__file__).parent.parent,
     )
     process = launcher.launch()

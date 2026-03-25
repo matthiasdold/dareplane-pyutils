@@ -14,7 +14,7 @@ def test_module_connection():
     # Create a module connection with the test server as the target
     connection = ModuleConnection(
         name="test_connection",
-        launcher=PythonLauncher(cwd=Path("."), entry_point="tests.resources.tserver"),
+        launcher=PythonLauncher(cwd=Path("."), entry_point="tests.resources.test_server"),
         communicator=SocketCommunicator(name="test_communicator", ip="127.0.0.1", port=8080),
     )
 
@@ -49,7 +49,7 @@ def test_module_connection_cleanup():
     # Create a module connection with the test server as the target
     connection = ModuleConnection(
         name="test_connection",
-        launcher=PythonLauncher(cwd=Path("."), entry_point="tests.resources.tserver"),
+        launcher=PythonLauncher(cwd=Path("."), entry_point="tests.resources.test_server"),
         communicator=SocketCommunicator(name="test_communicator", ip="127.0.0.1", port=8080),
     )
 
