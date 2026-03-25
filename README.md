@@ -7,6 +7,7 @@ This currently includes:
 1. A `DefaultServer` - which will be loaded an extended within each module to implement the dareplane API
 1. `logging` - which contains the standard formatting and a SocketHandler which is modified to send `json` representations of the logging records to the default logging server port (9020). This is used to enable cross process logging.
 1. A `StreamWatcher` implementation - which is a utility class to query a single LSL stream into a ring buffer.
+1. A `ModuleConnection` - which, together with a `launcher` and `communicator`, is used to launch and interact with other modules (currently supports launching Python and .exe programs).
 
 ## Default Dareplane Server
 
