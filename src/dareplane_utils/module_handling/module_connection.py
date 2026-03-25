@@ -4,7 +4,7 @@ import time
 from subprocess import Popen
 
 from dareplane_utils.module_handling.launcher import Launcher
-from dareplane_utils.module_handling.communication import Communicator
+from dareplane_utils.module_handling.communication import Communicator, SocketCommunicator
     
 @dataclass
 class ModuleConnection:
@@ -43,7 +43,13 @@ class ModuleConnection:
             self.communicator.send(msg)
         else:
             raise ConnectionError(f"Cannot send message to module {self.name=} because it has no communicator")
-    
+        
+    def receive_message(self, size: int) -> bytes:
+        if isinstance(self.communicator, SocketCommunicator):
+            return self.communicator.receive(size)
+        else:
+            raise NotImplementedError(f"Receive message is only implemented for SocketCommunicator, but have {type(self.communicator)}")
+
     def start(self):
         """Start the module and establish communication"""
         self.start_module_server()
