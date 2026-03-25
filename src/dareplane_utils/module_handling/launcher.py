@@ -158,11 +158,16 @@ def close_process_and_child_processes(process: subprocess.Popen) -> None:
         for ch in children:
             try:
                 ch.terminate()
+                try:
+                    ch.wait(timeout=1)
+                except psutil.TimeoutExpired:
+                    ch.kill()
             except:
                 pass
         i += 1
 
+    parent_ps.terminate()
     try:
+        parent_ps.wait(timeout=1)
+    except psutil.TimeoutExpired:
         parent_ps.kill()
-    except:
-        pass
