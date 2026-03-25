@@ -1,14 +1,64 @@
+import logging
 import subprocess
 import time
 from pathlib import Path
 from logging.handlers import SocketHandler
 import psutil
+import pytest
 
 from dareplane_utils.logging.logger import get_logger
 
 
 class TerminationError(Exception):
     pass
+
+
+@pytest.fixture
+def reset_logging():
+    """Reset logging state to ensure clean socket handler for server tests.
+
+    This fixture is necessary because:
+    1. Socket handlers persist across tests in the same process
+    2. A failed connection attempt (no server) leaves the handler in a bad state
+    3. We need to recreate handlers to test actual server communication
+    """
+    # Close and remove all socket handlers from root logger
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        if isinstance(handler, SocketHandler):
+            if hasattr(handler, "sock") and handler.sock:
+                try:
+                    handler.sock.close()
+                except:
+                    pass
+                handler.sock = None
+            handler.close()
+            root_logger.removeHandler(handler)
+
+    # Reset the config applied flag so logging can be reconfigured
+    import dareplane_utils.logging.logger as logger_module
+
+    logger_module._config_applied = False
+
+    # Clear any connection warnings to test fresh connections
+    for handler in root_logger.handlers[:]:
+        if isinstance(handler, SocketHandler) and hasattr(
+            handler, "_connection_warned"
+        ):
+            delattr(handler, "_connection_warned")
+
+    yield
+
+    # Cleanup after test
+    for handler in root_logger.handlers[:]:
+        if isinstance(handler, SocketHandler):
+            if hasattr(handler, "sock") and handler.sock:
+                try:
+                    handler.sock.close()
+                except:
+                    pass
+            handler.close()
+
 
 def test_opt_out_of_network_logging():
     logger = get_logger("myapp", no_socket_handler=True)
@@ -40,7 +90,7 @@ def stop_process_and_children(p: psutil.Process):
         pass
 
 
-def test_logging_server():
+def test_logging_server(reset_logging):
     testf = Path("dareplane_test.log")
 
     try:
@@ -70,7 +120,7 @@ def test_logging_server():
             logger2.error("error2")
             print("Messages sent")
 
-            time.sleep(0.5)
+            time.sleep(1)
             # Check last lines in log file
             print("Reading the logfile")
             with open(testf, "r") as fl:

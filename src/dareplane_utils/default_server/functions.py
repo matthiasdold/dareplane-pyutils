@@ -1,6 +1,7 @@
 import json
 import signal
 import subprocess
+import sys
 import threading
 import time
 from logging import Logger
@@ -11,6 +12,9 @@ import psutil
 from dareplane_utils.logging.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Check if we're on Windows
+IS_WINDOWS = sys.platform == "win32"
 
 
 def noop(*args, **kwargs) -> int:
@@ -49,7 +53,7 @@ def parse_msg(
         kwargs = json.loads(split[-1]) if len(split) > 1 else {}
     except json.JSONDecodeError as e:
         logger.error(
-            f"Could not parse json payload {msg.decode()=}: {e}, " "ignoring msg!"
+            f"Could not parse json payload {msg.decode()=}: {e}, ignoring msg!"
         )
         return noop, (), {}  # NOOP with no args or kwargs
 
@@ -128,12 +132,16 @@ def stop_process(process: subprocess.Popen, logger: Logger = logger):
     while parent_ps and parent_ps.children() != [] and i <= max_iter:
         if i > 0:
             time.sleep(0.2)
-        # try SIGINT first
+        # try gentle termination first
         if i <= max_iter - 1:
             for ch in parent_ps.children():
-                logger.debug(f"Sending kill to child process={ch}")
-                # ch.send_signal(signal.SIGINT)
-                ch.send_signal(signal.SIGTERM)
+                logger.debug(f"Sending terminate signal to child process={ch}")
+                if IS_WINDOWS:
+                    # On Windows, use terminate() method
+                    ch.terminate()
+                else:
+                    # On Unix, use SIGTERM
+                    ch.send_signal(signal.SIGTERM)
         # last iteration, if it is not gone yet, kill it
         else:
             for ch in parent_ps.children():
@@ -143,15 +151,28 @@ def stop_process(process: subprocess.Popen, logger: Logger = logger):
         i += 1
         logger.debug(f"Remaining childern={parent_ps.children()}")
 
+    # Now handle the parent process
     while (
         psutil.pid_exists(parent_ps.pid)
         and parent_ps.status() != "zombie"
         and j <= max_iter
     ):
-        parent_ps.send_signal(signal.SIGINT)
-        logger.debug(f"Sent SIGINT to parent={parent_ps.pid}")
+        if IS_WINDOWS:
+            # On Windows, use terminate() method
+            logger.debug(f"Terminating parent={parent_ps.pid}")
+            parent_ps.terminate()
+        else:
+            # On Unix, use SIGINT
+            parent_ps.send_signal(signal.SIGINT)
+            logger.debug(f"Sent SIGINT to parent={parent_ps.pid}")
+
         if j > 0:
             time.sleep(0.2)
         j += 1
 
-    parent_ps.kill()
+    # Final kill if still alive
+    try:
+        parent_ps.kill()
+    except psutil.NoSuchProcess:
+        # Process already terminated
+        pass

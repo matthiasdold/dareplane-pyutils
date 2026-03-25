@@ -1,5 +1,6 @@
 import logging
 import logging.config
+import warnings
 
 default_dareplane_config = {
     "version": 1,
@@ -32,7 +33,7 @@ default_dareplane_config = {
 # overwriting defaults
 colors = {"DEBUG": "cyan"}
 
-logging.config.dictConfig(default_dareplane_config)
+_config_applied = False
 
 
 # have this as a simple wrapper to ensure the updated config is used
@@ -61,6 +62,11 @@ def get_logger(
     logging.Logger
         The configured logger.
     """
+    global _config_applied
+    if not _config_applied:
+        logging.config.dictConfig(default_dareplane_config)
+        _config_applied = True
+    
     logger = logging.getLogger(name)
     root_logger = logging.getLogger()
 
@@ -71,10 +77,30 @@ def get_logger(
         consol_handler.formatter.log_colors.update(colors)
         logger.addHandler(consol_handler)  # add console handler
 
-    socket_handler = [
+    socket_handlers = [
         h for h in root_logger.handlers if isinstance(h, logging.handlers.SocketHandler)
-    ][0]
-    logger.addHandler(socket_handler)  # add socket handler
+    ]
+    if socket_handlers:
+        socket_handler = socket_handlers[0]
+        
+        # Warn once if socket handler cannot connect (helps debugging)
+        if not hasattr(socket_handler, '_connection_warned'):
+            try:
+                # Test if we can create a socket connection
+                if socket_handler.sock is None:
+                    test_sock = socket_handler.makeSocket()
+                    if test_sock:
+                        test_sock.close()
+            except (ConnectionRefusedError, OSError, Exception):
+                warnings.warn(
+                    f"Logging server not available at {socket_handler.host}:{socket_handler.port}. "
+                    "Network logs will be lost. Logs will only appear in console.",
+                    RuntimeWarning,
+                    stacklevel=2
+                )
+            socket_handler._connection_warned = True
+        
+        logger.addHandler(socket_handler)  # add socket handler
 
     if no_socket_handler:
         logger.handlers = [
