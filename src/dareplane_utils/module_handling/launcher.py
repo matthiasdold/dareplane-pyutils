@@ -5,6 +5,7 @@ import os
 import subprocess
 import time
 import sys
+import warnings
 
 import psutil
 
@@ -13,8 +14,13 @@ class Launcher(ABC):
     """Base class for launching different types of processes."""
     
     @abstractmethod
-    def launch(self) -> Popen:
+    def launch(self, relaunch: bool = False) -> Popen:
         """Launch the process.
+
+        Parameters
+        ----------
+        relaunch : bool, optional
+            If ``True``, will terminate an existing process before launching a new one. Defaults to ``False``.
 
         Returns
         -------
@@ -24,14 +30,8 @@ class Launcher(ABC):
         pass
     
     @abstractmethod
-    def terminate(self, process: Popen) -> None:
-        """Terminate and clean up a launched process.
-
-        Parameters
-        ----------
-        process : subprocess.Popen
-            Process handle to terminate.
-        """
+    def terminate(self) -> None:
+        """Terminate and clean up a launched process."""
         pass
 
 
@@ -60,6 +60,7 @@ class PythonLauncher(Launcher):
         kwargs : dict or None, optional
             Additional keyword arguments passed as ``--key=value``.
         """
+        self.process = None
         self.executable = executable
         self.entry_point = entry_point
         self.args = args or []
@@ -67,11 +68,21 @@ class PythonLauncher(Launcher):
         if isinstance(cwd, str):
             cwd = Path(cwd)
         self.cwd = cwd
+        
+        assert self.cwd.exists(), f"Directory {self.cwd} does not exist"
     
-    def launch(self) -> Popen:
-        modpath = self.cwd
-
-        assert modpath.exists(), f"not a valid path {modpath}"
+    def launch(self, relaunch: bool = False) -> Popen:
+        if self.process and not relaunch:
+            warnings.warn(
+                    f"Module {self.name=} is already running with pid {self.process.pid}. Returning existing process.",
+                    RuntimeWarning,
+                    stacklevel=2
+                )
+            return self.process
+        
+        if self.process and relaunch:
+            self.terminate()
+            self.process = None
 
         cmd = [
             self.executable,
@@ -81,17 +92,19 @@ class PythonLauncher(Launcher):
             *[f"--{k}={v}" for k, v in self.kwargs.items()],
         ]
 
-        popen_kwargs = {"cwd": str(modpath.resolve())}
+        popen_kwargs = {"cwd": str(self.cwd.resolve())}
         if os.name == "nt":
             popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
         else:
             popen_kwargs["start_new_session"] = True
 
-        return subprocess.Popen(cmd, **popen_kwargs)
-    
-    def terminate(self, process: Popen) -> None:
-        if process:
-            close_process_and_child_processes(process)
+        self.process = subprocess.Popen(cmd, **popen_kwargs)
+        return self.process
+
+    def terminate(self) -> None:
+        if self.process:
+            close_process_and_child_processes(self.process)
+            self.process = None
 
 
 class ExeLauncher(Launcher):
@@ -111,20 +124,40 @@ class ExeLauncher(Launcher):
         self.exe_path = exe_path
         self.args = args or []
         self.cwd = cwd
+        self.process = None
+
+        assert self.cwd.exists(), f"Directory {self.cwd} does not exist"
+        assert self.exe_path.exists(), f"Executable {self.exe_path} does not exist"
+        
     
-    def launch(self) -> Popen:
+    def launch(self, relaunch: bool = False) -> Popen:
+        if self.process and not relaunch:
+            warnings.warn(
+                    f"Module {self.name=} is already running with pid {self.process.pid}. Returning existing process.",
+                    RuntimeWarning,
+                    stacklevel=2
+                )
+            return self.process
+        
+        if self.process and relaunch:
+            self.terminate()
+            self.process = None
+
         popen_kwargs = {"cwd": str(self.cwd) if self.cwd else None}
         if os.name == "nt":
             popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
         else:
             popen_kwargs["start_new_session"] = True
 
-        return subprocess.Popen([str(self.exe_path)] + self.args, **popen_kwargs)
+        self.process = subprocess.Popen([str(self.exe_path)] + self.args, **popen_kwargs)
+        return self.process
     
-    def terminate(self, process: Popen) -> None:
-        if process:
-            close_process_and_child_processes(process)
-    
+    def terminate(self) -> None:
+        if self.process:
+            close_process_and_child_processes(self.process)
+            self.process = None
+
+
 def close_process_and_child_processes(process: subprocess.Popen) -> None:
     """Close a process and its child processes.
 

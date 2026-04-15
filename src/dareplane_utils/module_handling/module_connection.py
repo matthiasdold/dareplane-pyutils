@@ -1,7 +1,4 @@
 from dataclasses import dataclass
-from dataclasses import field
-from subprocess import Popen
-import warnings
 
 from dareplane_utils.module_handling.launcher import Launcher
 from dareplane_utils.module_handling.communication import Communicator, SocketCommunicator
@@ -12,17 +9,9 @@ class ModuleConnection:
     name: str
     launcher: Launcher
     communicator: Communicator | None = None
-    process: Popen | None = None
 
-    def start_module_server(self):
-        if self.process is not None and self.process.poll() is None:
-            warnings.warn(
-                    f"Module {self.name=} is already running with pid {self.process.pid}. Not launching again.",
-                    RuntimeWarning,
-                    stacklevel=2
-                )
-            return
-        self.process = self.launcher.launch()
+    def start_module_server(self, relaunch: bool = False):
+        self.launcher.launch(relaunch=relaunch)
 
     def connect_to_module(self):
         if self.communicator:
@@ -30,7 +19,7 @@ class ModuleConnection:
                 self.communicator.connect()
             except ConnectionRefusedError as e:
                     # If connection failed because host process is not running, give a more specific error
-                    if self.process is not None and self.process.poll() is not None:
+                    if self.launcher.process is not None and self.launcher.process.poll() is not None:
                         raise ConnectionRefusedError(
                             f"Cannot connect to module {self.name=}. Host process not running."
                         )
@@ -42,9 +31,7 @@ class ModuleConnection:
             self.communicator.disconnect()
 
     def stop_process(self):
-        if self.process is not None:
-            self.launcher.terminate(self.process)
-            self.process = None
+        self.launcher.terminate()
 
     def send_message(self, msg: bytes):
         if self.communicator:
