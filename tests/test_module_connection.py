@@ -23,9 +23,9 @@ def test_module_connection():
     time.sleep(2)
 
     # Check that the connection is alive
-    pid = connection.process.pid
+    pid = connection.launcher.process.pid
     assert pid is not None
-    assert connection.process.poll() is None
+    assert connection.launcher.process.poll() is None
     assert connection.communicator.socket_c is not None
 
     connection.send_message(b"UP")
@@ -35,7 +35,7 @@ def test_module_connection():
     # Stop the connection and check that the process is terminated
     connection.stop()
     time.sleep(1)
-    assert connection.process is None
+    assert connection.launcher.process is None
 
     # Check that the pid is not running anymore
     with pytest.raises(psutil.NoSuchProcess):
@@ -57,9 +57,9 @@ def test_module_connection_cleanup():
     connection.start()
     time.sleep(2)
 
-    pid = connection.process.pid
+    pid = connection.launcher.process.pid
     assert pid is not None
-    assert connection.process.poll() is None
+    assert connection.launcher.process.poll() is None
 
     # Delete the connection object without explicitly stopping it, and check that the process is terminated
     del connection

@@ -13,7 +13,7 @@ def test_python_launcher():
     assert process.poll() is None  # process should be running
 
     # Teardown
-    launcher.terminate(process)
+    launcher.terminate()
     time.sleep(1)
     assert process.poll() is not None  # process should be terminated
 
