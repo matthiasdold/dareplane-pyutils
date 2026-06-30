@@ -10,8 +10,8 @@ class ModuleConnection:
     launcher: Launcher
     communicator: Communicator | None = None
 
-    def start_module_server(self, relaunch: bool = False):
-        self.launcher.launch(relaunch=relaunch)
+    def launch_module(self, relaunch: bool = False, **popen_kwargs):
+        self.launcher.launch(relaunch=relaunch, **popen_kwargs)
 
     def connect_to_module(self):
         if self.communicator:
@@ -45,9 +45,9 @@ class ModuleConnection:
         else:
             raise NotImplementedError(f"Receive message is only implemented for SocketCommunicator, but have {type(self.communicator)}")
 
-    def start(self):
+    def start(self, relaunch: bool = False, **popen_kwargs):
         """Start the module and establish communication"""
-        self.start_module_server()
+        self.launch_module(relaunch=relaunch, **popen_kwargs)
         self.connect_to_module()
     
     def stop(self):

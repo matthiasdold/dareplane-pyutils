@@ -14,13 +14,15 @@ class Launcher(ABC):
     """Base class for launching different types of processes."""
     
     @abstractmethod
-    def launch(self, relaunch: bool = False) -> Popen:
+    def launch(self, relaunch: bool = False, **kwargs) -> Popen:
         """Launch the process.
 
         Parameters
         ----------
         relaunch : bool, optional
             If ``True``, will terminate an existing process before launching a new one. Defaults to ``False``.
+        **kwargs
+            Additional keyword arguments passed to ``subprocess.Popen``.
 
         Returns
         -------
@@ -71,7 +73,7 @@ class PythonLauncher(Launcher):
         
         assert self.cwd.exists(), f"Directory {self.cwd} does not exist"
     
-    def launch(self, relaunch: bool = False) -> Popen:
+    def launch(self, relaunch: bool = False, **popen_kwargs) -> Popen:
         if self.process and not relaunch:
             warnings.warn(
                     f"Module {self.name=} is already running with pid {self.process.pid}. Returning existing process.",
@@ -92,7 +94,7 @@ class PythonLauncher(Launcher):
             *[f"--{k}={v}" for k, v in self.kwargs.items()],
         ]
 
-        popen_kwargs = {"cwd": str(self.cwd.resolve())}
+        popen_kwargs["cwd"] = str(self.cwd.resolve())
         if os.name == "nt":
             popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
         else:
@@ -108,7 +110,7 @@ class PythonLauncher(Launcher):
 
 
 class ExeLauncher(Launcher):
-    def __init__(self, exe_path: Path, args: list | None = None, cwd: Path | None = None):
+    def __init__(self, exe_path: Path | str, args: list | None = None, cwd: Path | str | None = None):
         """Initialize a launcher for generic executables.
 
         Parameters
@@ -121,16 +123,22 @@ class ExeLauncher(Launcher):
             Working directory for the subprocess. If ``None``, the current
             process working directory is used.
         """
+        if isinstance(exe_path, str):
+            exe_path = Path(exe_path)
+        if isinstance(cwd, str):
+            cwd = Path(cwd)
         self.exe_path = exe_path
         self.args = args or []
         self.cwd = cwd
         self.process = None
+        if self.cwd is None:
+            self.cwd = Path.cwd()
 
         assert self.cwd.exists(), f"Directory {self.cwd} does not exist"
         assert self.exe_path.exists(), f"Executable {self.exe_path} does not exist"
         
     
-    def launch(self, relaunch: bool = False) -> Popen:
+    def launch(self, relaunch: bool = False, **popen_kwargs) -> Popen:
         if self.process and not relaunch:
             warnings.warn(
                     f"Module {self.name=} is already running with pid {self.process.pid}. Returning existing process.",
@@ -143,7 +151,7 @@ class ExeLauncher(Launcher):
             self.terminate()
             self.process = None
 
-        popen_kwargs = {"cwd": str(self.cwd) if self.cwd else None}
+        popen_kwargs["cwd"] = str(self.cwd) if self.cwd else None
         if os.name == "nt":
             popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
         else:
