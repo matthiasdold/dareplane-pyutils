@@ -1,6 +1,5 @@
 import subprocess
 import sys
-import threading
 import time
 from typing import Iterator
 
@@ -40,7 +39,11 @@ def server_process() -> Iterator[subprocess.Popen]:
     except TimeoutError as e:
         proc.terminate()
         raise RuntimeError("Server failed to start") from e
-    
+
+    # Extra buffer for Windows where the server may not have sent the
+    # connection banner yet by the time the port becomes reachable
+    time.sleep(0.5)
+
     yield proc
 
     # Teardown
@@ -52,7 +55,6 @@ def server_process() -> Iterator[subprocess.Popen]:
             proc.kill()
 
 def test_connection_to_server(server_process):
-    proc = server_process
     # Connect to the server and send a command
     sc = SocketCommunicator(ip = "127.0.0.1", port = 8080, name="test")
     sc.connect()
@@ -84,9 +86,29 @@ def slow_server_process() -> Iterator[subprocess.Popen]:
             proc.kill()
 
 
-def test_retry_connection_after_s_for_slow_startup(slow_server_process):
-    proc = slow_server_process
+def test_server_accepts_reconnect_after_client_disconnect(server_process):
+    # First client connects, sends a command, then disconnects
+    sc1 = SocketCommunicator(ip="127.0.0.1", port=8080, name="test_first")
+    sc1.connect()
+    sc1.socket_c.settimeout(2)
+    sc1.send(b"UP")
+    assert sc1.receive(2048).decode() == "1"
+    sc1.disconnect()
 
+    # Give the server time to loop back to accept()
+    time.sleep(0.2)
+
+    # Second client should be accepted and functional
+    sc2 = SocketCommunicator(ip="127.0.0.1", port=8080, name="test_second")
+    sc2.connect()
+    assert sc2.socket_c is not None
+    sc2.socket_c.settimeout(2)
+    sc2.send(b"UP")
+    assert sc2.receive(2048).decode() == "1"
+    sc2.disconnect()
+
+
+def test_retry_connection_after_s_for_slow_startup(slow_server_process):
     # Quick connection should fail
     with pytest.raises(OSError):
         sc = SocketCommunicator(ip="127.0.0.1", port=8081, name="test_slow", max_connect_retries=0)

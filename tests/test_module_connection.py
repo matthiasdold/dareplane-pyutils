@@ -1,9 +1,7 @@
 import time
 from pathlib import Path
-import subprocess
 import pytest
 import psutil
-import os
 
 from dareplane_utils.module_handling.module_connection import ModuleConnection
 from dareplane_utils.module_handling.launcher import PythonLauncher

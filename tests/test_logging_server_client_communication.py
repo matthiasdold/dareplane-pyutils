@@ -29,7 +29,7 @@ def reset_logging():
             if hasattr(handler, "sock") and handler.sock:
                 try:
                     handler.sock.close()
-                except:
+                except Exception:
                     pass
                 handler.sock = None
             handler.close()
@@ -55,7 +55,7 @@ def reset_logging():
             if hasattr(handler, "sock") and handler.sock:
                 try:
                     handler.sock.close()
-                except:
+                except Exception:
                     pass
             handler.close()
 

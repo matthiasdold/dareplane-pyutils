@@ -203,7 +203,7 @@ def close_process_and_child_processes(process: subprocess.Popen) -> None:
                     ch.wait(timeout=1)
                 except psutil.TimeoutExpired:
                     ch.kill()
-            except:
+            except Exception:
                 pass
         i += 1
 

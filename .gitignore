@@ -159,3 +159,4 @@ objects.json
 _site/
 
 /.quarto/
+uv.lock

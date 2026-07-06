@@ -1,7 +1,6 @@
 # A server implementation for testing purposes only
 
 import threading
-import argparse
 
 from dareplane_utils.default_server.server import DefaultServer
 from dareplane_utils.logging.logger import get_logger
