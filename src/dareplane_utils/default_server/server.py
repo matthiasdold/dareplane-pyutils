@@ -145,7 +145,7 @@ class DefaultServer:
                     self.current_conn.sendall(
                         f"Was unable to decode {msg=} to ascii\n".encode()  # type: ignore
                     )
-                except ConnectionResetError as err:
+                except ConnectionResetError:
                     self.logger.info("Connection was reset by host")
                     break
                 except Exception as err:

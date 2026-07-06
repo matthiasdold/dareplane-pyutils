@@ -3,7 +3,6 @@ from socket import SHUT_RDWR
 import socket
 import time
 
-from subprocess import Popen
 
 class Communicator(ABC):
     """Base class for communication with modules"""

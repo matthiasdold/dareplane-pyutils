@@ -1,6 +1,5 @@
 import subprocess
 import sys
-import threading
 import time
 from typing import Iterator
 
@@ -52,7 +51,6 @@ def server_process() -> Iterator[subprocess.Popen]:
             proc.kill()
 
 def test_connection_to_server(server_process):
-    proc = server_process
     # Connect to the server and send a command
     sc = SocketCommunicator(ip = "127.0.0.1", port = 8080, name="test")
     sc.connect()
@@ -85,8 +83,6 @@ def slow_server_process() -> Iterator[subprocess.Popen]:
 
 
 def test_retry_connection_after_s_for_slow_startup(slow_server_process):
-    proc = slow_server_process
-
     # Quick connection should fail
     with pytest.raises(OSError):
         sc = SocketCommunicator(ip="127.0.0.1", port=8081, name="test_slow", max_connect_retries=0)
