@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dareplane_utils"
-version = "0.0.21"
-authors = [{name="Matthias Dold", email="matthias.dold@gmx.net"}]
+version = "0.0.22"
+authors = [{ name = "Matthias Dold", email = "matthias.dold@gmx.net" }]
 description = "Default utilities for the dareplane platform"
-readme ="README.md"
+readme = "README.md"
 requires-python = ">=3.10"
 
 dependencies = [
@@ -32,7 +32,7 @@ dependencies = [
   "scipy >= 1.13.1",
   "six >= 1.16.0",
   "ujson >= 5.10.0",
-  "xmltodict >= 0.13.0"
+  "xmltodict >= 0.13.0",
 ]
 
 [project.urls]
@@ -40,8 +40,5 @@ dependencies = [
 
 [tool.pytest.ini_options]
 addopts = "-ra -q"
-testpaths = [
-    "tests",
-    "./"
-]
+testpaths = ["tests", "./"]
 filterwarnings = ["ignore:::.*fire.core"]
