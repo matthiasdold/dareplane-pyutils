@@ -125,7 +125,12 @@ class DefaultServer:
                 raise err
 
             self.current_conn = current_conn
-            self.current_conn.sendall(f"Connected to {self.name}\n".encode())
+            try:
+                self.current_conn.sendall(f"Connected to {self.name}\n".encode())
+            except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+                self.logger.info("Client disconnected before banner could be sent")
+                continue
+
             while not self.listen_stop_event.is_set():
                 try:
                     msg = self.current_conn.recv(2048)
@@ -145,7 +150,7 @@ class DefaultServer:
                     self.current_conn.sendall(
                         f"Was unable to decode {msg=} to ascii\n".encode()  # type: ignore
                     )
-                except ConnectionResetError as err:
+                except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
                     self.logger.info("Connection was reset by host")
                     break
                 except Exception as err:

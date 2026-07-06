@@ -58,5 +58,5 @@ class ModuleConnection:
     def __del__(self):
         try:
             self.stop()
-        except:
+        except Exception:
             pass
