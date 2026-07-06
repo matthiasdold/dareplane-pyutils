@@ -131,6 +131,9 @@ class DefaultServer:
                     msg = self.current_conn.recv(2048)
                     if msg:
                         self.handle_msg(msg)
+                    else:
+                        self.logger.info("Client disconnected")
+                        break
 
                 except socket.timeout as err:
                     self.logger.info(f"Caugth timeout error {err=}")
@@ -143,9 +146,8 @@ class DefaultServer:
                         f"Was unable to decode {msg=} to ascii\n".encode()  # type: ignore
                     )
                 except ConnectionResetError as err:
-                    self.logger.info("Connection was reset by host- stopping the server")
-                    self.is_listening = False
-                    raise err
+                    self.logger.info("Connection was reset by host")
+                    break
                 except Exception as err:
                     self.logger.error(f"Caught error {err=}")
                     self.is_listening = False

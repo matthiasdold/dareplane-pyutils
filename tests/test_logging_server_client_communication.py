@@ -3,7 +3,6 @@ import subprocess
 import time
 from pathlib import Path
 from logging.handlers import SocketHandler
-
 import psutil
 import pytest
 
@@ -67,8 +66,8 @@ def test_opt_out_of_network_logging():
 
 
 def run_logging_server() -> subprocess.Popen:
-    cmd = "python -m dareplane_utils.logging.server --logfile=dareplane_test.log"
-    return subprocess.Popen(cmd, shell=True)
+    cmd = ["python", "-m", "dareplane_utils.logging.server", "--logfile=dareplane_test.log"]
+    return subprocess.Popen(cmd)
 
 
 def stop_process_and_children(p: psutil.Process):
@@ -97,7 +96,7 @@ def test_logging_server(reset_logging):
     try:
         with run_logging_server() as p_server:
             print(f"Started logging server with PID {p_server.pid}")
-            time.sleep(1)
+            time.sleep(1.0)
 
             print("Initializing loggers and sending messages")
             logger1 = get_logger("myapp.area1")
@@ -114,6 +113,7 @@ def test_logging_server(reset_logging):
             logger1.info("info1")
             logger1.warning("warning1")
             logger1.error("error1")
+            time.sleep(0.1)
             logger2.debug("debug2")
             logger2.info("info2")
             logger2.warning("warning2")
