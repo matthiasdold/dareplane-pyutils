@@ -1,9 +1,13 @@
+# To create a release and trigger this workflow:
+#   1. Tag the commit:  git tag v0.0.22 <commit-hash>
+#   2. Push the tag:    git push origin v0.0.22
+#   3. Create release:  gh release create v0.0.22 --title "v0.0.22" --notes "Release notes here"
+
 name: Build and Publish Python Package
 
 on:
-  push:
-    tags:
-      - 'v*'  # Triggers the workflow when a tag starting with 'v' is pushed (e.g., v1.0.0), only trigger on tag (cannot combine this with filter on branch...)
+  release:
+    types: [published]
 
 jobs:
   build-and-publish:
