@@ -39,7 +39,11 @@ def server_process() -> Iterator[subprocess.Popen]:
     except TimeoutError as e:
         proc.terminate()
         raise RuntimeError("Server failed to start") from e
-    
+
+    # Extra buffer for Windows where the server may not have sent the
+    # connection banner yet by the time the port becomes reachable
+    time.sleep(0.5)
+
     yield proc
 
     # Teardown

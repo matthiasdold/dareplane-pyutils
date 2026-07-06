@@ -6,27 +6,34 @@ import time
 
 class Communicator(ABC):
     """Base class for communication with modules"""
-    
+
     @abstractmethod
     def connect(self) -> None:
         pass
-    
+
     @abstractmethod
     def disconnect(self) -> None:
         pass
-    
+
     @abstractmethod
     def send(self, data: bytes) -> None:
         pass
-    
+
     @abstractmethod
     def receive(self, size: int) -> bytes:
         pass
 
 
 class SocketCommunicator(Communicator):
-    def __init__(self, ip: str, port: int, name: str, 
-                 retry_after_s: float = 1, max_connect_retries: int = 3, logger=None):
+    def __init__(
+        self,
+        ip: str,
+        port: int,
+        name: str,
+        retry_after_s: float = 1,
+        max_connect_retries: int = 3,
+        logger=None,
+    ):
         self.ip = ip
         self.port = port
         self.name = name
@@ -35,10 +42,12 @@ class SocketCommunicator(Communicator):
         self.logger = logger
         self.socket_c = None
         self.near_port = 0
-    
+
     def connect(self):
         if self.logger:
-            self.logger.debug(f"{self.name=} - connecting socket to {self.ip}:{self.port}")
+            self.logger.debug(
+                f"{self.name=} - connecting socket to {self.ip}:{self.port}"
+            )
 
         try:
             self.socket_c = self.create_socket_client(
@@ -54,7 +63,7 @@ class SocketCommunicator(Communicator):
             raise err
 
         # Time-out as non of the sockets should block indefinitely
-        self.socket_c.setblocking(0)
+        self.socket_c.setblocking(0)  # type: ignore
 
         # read out the actual socket -> if port == 0, a random free port
         # was assigned
@@ -81,17 +90,19 @@ class SocketCommunicator(Communicator):
                     f"Connection refused for - {self.name=}, {self.ip=}, {self.port=}"
                 )
             raise err
-        except TimeoutError as err:
+        except TimeoutError:  #
             if self.logger:
-                self.logger.debug(f"No response upon connection for {self.name=} - {err=}")
+                self.logger.debug(f"No response upon connection for {self.name=}")
         except Exception as err:
             if self.logger:
-                self.logger.debug(f"Other error upon connection for {self.name=}, {err=}")
+                self.logger.debug(
+                    f"Other error upon connection for {self.name=}, {err=}"
+                )
             raise err
-    
+
     def create_socket_client(
-            self, host_ip: str, port: int, retry_connection_after_s: float = 1
-        ) -> socket.socket:
+        self, host_ip: str, port: int, retry_connection_after_s: float = 1
+    ) -> socket.socket:
         """
         Create a socket client and attempt to connect to a specified host and port.
 
@@ -145,13 +156,15 @@ class SocketCommunicator(Communicator):
         raise ConnectionRefusedError(
             f"Connection refused after {self.max_connect_retries} tries: {host_ip=}, {port=}"
         )
-    
+
     def disconnect(self) -> None:
         if not self.socket_c:
             return
         try:
             if self.logger:
-                self.logger.debug(f"{self.name} trying to gracefully shurtdown {self.socket_c}")
+                self.logger.debug(
+                    f"{self.name} trying to gracefully shurtdown {self.socket_c}"
+                )
             self.socket_c.shutdown(SHUT_RDWR)
         except OSError:
             if self.logger:
@@ -165,11 +178,11 @@ class SocketCommunicator(Communicator):
             except OSError:
                 pass
             self.socket_c = None
-                
+
     def send(self, data: bytes) -> None:
         if self.socket_c:
             self.socket_c.sendall(data)
-    
+
     def receive(self, size: int) -> bytes:
         if self.socket_c:
             return self.socket_c.recv(size)
