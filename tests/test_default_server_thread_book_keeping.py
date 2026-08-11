@@ -47,7 +47,7 @@ def test_spawning_thread_from_client(
     # Send a message to the server to spawn a process
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(("localhost", 8080))
-    client.sendall(b"STARTTHREAD")
+    client.sendall(b"STARTTHREAD;")
 
     time.sleep(0.1)
     logger.debug(f"{server.threads=}")
@@ -55,7 +55,7 @@ def test_spawning_thread_from_client(
     # the process should be registerd for book keeping
     assert len(server.threads.keys()) == 1
 
-    client.sendall(b"CLOSE")
+    client.sendall(b"CLOSE;")
     client.close()
 
 
@@ -65,11 +65,11 @@ def test_stopping_processes(get_default_server_with_thread_spawning):
     # Send a message to the server to spawn a process
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(("localhost", 8080))
-    client.sendall(b"STARTTHREAD")
+    client.sendall(b"STARTTHREAD;")
 
     time.sleep(0.1)
     server.close_threads()
 
     assert len(server.threads.keys()) == 0
-    client.sendall(b"CLOSE")
+    client.sendall(b"CLOSE;")
     client.close()
