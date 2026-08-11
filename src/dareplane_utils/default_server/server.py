@@ -57,12 +57,17 @@ class DefaultServer:
         A flag indicating whether the server is currently listening.
     logger : Logger
         The logger for the server.
+    delimiter : bytes
+        The byte sequence terminating a single command on the wire. Incoming
+        data is buffered until a delimiter is found, so commands split across
+        multiple TCP segments are reassembled. Default is b";".
     """
 
     port: int = 8080
     ip: str = "0.0.0.0"
     nlisten: int = 10
     name: str = "default_server"
+    delimiter: bytes = b";"
     thread_stopper: Callable = stop_thread
     proc_stopper: Callable = stop_process
     msg_interpreter: Callable = interpret_msg
@@ -125,40 +130,64 @@ class DefaultServer:
                 raise err
 
             self.current_conn = current_conn
+            self.on_connection_accepted()
+
             try:
                 self.current_conn.sendall(f"Connected to {self.name}\n".encode())
             except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
                 self.logger.info("Client disconnected before banner could be sent")
                 continue
 
-            while not self.listen_stop_event.is_set():
-                try:
-                    msg = self.current_conn.recv(2048)
-                    if msg:
-                        self.handle_msg(msg)
-                    else:
-                        self.logger.info("Client disconnected")
-                        break
-
-                except socket.timeout as err:
-                    self.logger.info(f"Caugth timeout error {err=}")
-
-                except KeyboardInterrupt as _:
-                    self.logger.info("Received KeyboardInterrupt - stopping the server")
-
-                except UnicodeDecodeError as _:
-                    self.current_conn.sendall(
-                        f"Was unable to decode {msg=} to ascii\n".encode()  # type: ignore
-                    )
-                except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-                    self.logger.info("Connection was reset by host")
-                    break
-                except Exception as err:
-                    self.logger.error(f"Caught error {err=}")
-                    self.is_listening = False
-                    raise err
+            self.process_connection()
 
         self.is_listening = False
+
+    def on_connection_accepted(self):
+        """Hook invoked after a connection was accepted, before the banner is sent"""
+        pass
+
+    def process_connection(self):
+        """
+        Read from the current connection and dispatch complete commands.
+
+        Data is accumulated in a buffer and only split off for handling once a
+        `self.delimiter` is found. This is required because TCP provides a byte
+        stream without message boundaries - a single `recv` can return a partial
+        command or several concatenated commands. An incomplete trailing
+        fragment stays in the buffer until the rest of it arrives.
+        """
+        buffer = b""
+
+        while not self.listen_stop_event.is_set():
+            try:
+                chunk = self.current_conn.recv(2048)  # type: ignore
+                if not chunk:
+                    self.logger.info("Client disconnected")
+                    break
+
+                buffer += chunk
+                while self.delimiter in buffer:
+                    msg, buffer = buffer.split(self.delimiter, 1)
+                    if msg.strip():
+                        self.handle_msg(msg)
+
+            except socket.timeout as err:
+                self.logger.info(f"Caugth timeout error {err=}")
+
+            except KeyboardInterrupt as _:
+                self.logger.info("Received KeyboardInterrupt - stopping the server")
+
+            except UnicodeDecodeError as _:
+                self.current_conn.sendall(  # type: ignore
+                    f"Was unable to decode {msg=} to ascii\n".encode()  # type: ignore
+                )
+            except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+                self.logger.info("Connection was reset by host")
+                break
+            except Exception as err:
+                self.logger.error(f"Caught error {err=}")
+                self.is_listening = False
+                raise err
 
     def handle_msg(self, msg: bytes):
         """
@@ -349,82 +378,16 @@ class DefaultCallbackServer(DefaultServer):
         default_factory=list
     )  # list of callback payloads, which will be sent to connected clients
 
-    def start_listening(self):
-        # main loop for running the server
-        self.logger.debug("Callback server starting to listen")
-        while not self.listen_stop_event.is_set():
-            self.is_listening = True
-            # for now just work on one / the current connection, implement
-            # TODO: refactor this part for a cleaner implementation of the dealing with callbacks -> all copy and paste from above, besides 4 lines
-            try:
-                current_conn, addr = self.server_socket.accept()
-
-                # Initialize the callback thread
-                callback_stop_event = threading.Event()
-                callback_thread = threading.Thread(
-                    target=process_callbacks,
-                    args=(self, callback_stop_event),
-                )
-                # add to automatically manage closing
-                self.threads["callbacks"] = (
-                    callback_thread,
-                    callback_stop_event,
-                )
-                callback_thread.start()
-
-            except Exception as err:
-                self.logger.error(
-                    f"Error accepting connection at {self.ip=}, {self.port=}, "
-                    f"{self.server_socket=}"
-                )
-                raise err
-
-            self.current_conn = current_conn
-            self.current_conn.sendall(f"Connected to {self.name}\n".encode())
-            while not self.listen_stop_event.is_set():
-                try:
-                    # Process incoming
-                    msg = self.current_conn.recv(1024)
-                    if msg:
-                        self.logger.info(f"Received: {msg}")
-                        # interpret the message
-
-                        # Default functionality which should always be there
-                        # and the same for all servers
-                        is_default_command = self.default_msg_interpretation(msg)
-
-                        # if not a default command, check the pcmommand map
-                        if not is_default_command:
-                            msg = msg.replace(b"\r\n", b"")
-                            # common start byte, would lead to an error in decode otherwise # noqa
-                            msg = msg.replace(b"\xc2", b"")
-                            # Ignore blanks -> e.g. accidental return in telnet
-                            if (
-                                msg != b""
-                                and msg.decode("ascii").split("|")[0]
-                                in self.pcommand_map.keys()
-                            ):
-                                self.msg_interpretation(msg)
-
-                            else:
-                                self.logger.warning(f"Unknown pcomm in {msg=}")
-
-                except socket.timeout as err:
-                    self.logger.info(f"Caugth timeout error {err=}")
-
-                except KeyboardInterrupt as _:
-                    self.logger.info("Received KeyboardInterrupt - stopping the server")
-
-                except UnicodeDecodeError as _:
-                    self.current_conn.sendall(
-                        f"Was unable to decode {msg=} to ascii\n".encode()  # type: ignore
-                    )
-                except Exception as err:
-                    self.logger.error(f"Caught error {err=}")
-                    self.is_listening = False
-                    raise err
-
-        self.is_listening = False
+    def on_connection_accepted(self):
+        """Spawn the thread sending queued callbacks to the freshly connected client"""
+        callback_stop_event = threading.Event()
+        callback_thread = threading.Thread(
+            target=process_callbacks,
+            args=(self, callback_stop_event),
+        )
+        # add to automatically manage closing
+        self.threads["callbacks"] = (callback_thread, callback_stop_event)
+        callback_thread.start()
 
 
 def process_callbacks(server: DefaultCallbackServer, stop_event: threading.Event):
