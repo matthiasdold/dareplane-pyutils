@@ -1,3 +1,4 @@
+import logging
 import socket
 import threading
 import time
@@ -72,3 +73,43 @@ def test_empty_commands_are_ignored(server_with_thread_spawning, client):
 
     time.sleep(0.15)
     assert len(server_with_thread_spawning.threads) == 1
+
+
+@pytest.fixture
+def log_records(server_with_thread_spawning):
+    """Capture records directly - the dareplane logger does not propagate to root"""
+    records = []
+
+    class Capture(logging.Handler):
+        def emit(self, record):
+            records.append(record)
+
+    logger = server_with_thread_spawning.logger
+    handler = Capture()
+    prev_level = logger.level
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
+    yield records
+
+    logger.removeHandler(handler)
+    logger.setLevel(prev_level)
+
+
+@pytest.mark.parametrize("up_msg", [b"UP;", b"UP\r\n;", b"UP|;"])
+def test_up_is_not_logged(server_with_thread_spawning, client, log_records, up_msg):
+    """UP is a periodic health check and must not show up in the logs"""
+    client.sendall(up_msg)
+    time.sleep(0.15)
+
+    assert not [r for r in log_records if "Received:" in r.getMessage()]
+
+
+def test_other_pcomms_are_still_logged(server_with_thread_spawning, client, log_records):
+    """Only UP is silenced - regular PCOMMS are still logged at INFO"""
+    client.sendall(b"STARTTHREAD;")
+    time.sleep(0.15)
+
+    received = [r for r in log_records if "Received:" in r.getMessage()]
+    assert len(received) == 1
+    assert received[0].levelname == "INFO"

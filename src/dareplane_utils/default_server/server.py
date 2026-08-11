@@ -203,7 +203,10 @@ class DefaultServer:
             The incoming message to be interpreted.
         """
 
-        self.logger.info(f"Received: {msg}")
+        # UP is used as a periodic health check - it is not logged at all as it
+        # would drown out the actual PCOMMS
+        if msg.replace(b"\r\n", b"").rstrip(b"|") != b"UP":
+            self.logger.info(f"Received: {msg}")
         # Check if msg is concatenation of multiple commands, happends if
         # processing of a single command takes to long so multiple commands
         # end up at the socket
