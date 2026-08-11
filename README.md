@@ -50,32 +50,35 @@ conn.send_message(b"UP")    # b"UP;" goes on the wire
 
 #### Command syntax
 
-Commands are `|`-separated. The **last** segment is always parsed as a JSON object of keyword
-arguments, any segments in between are passed as positional strings:
+A command consists of a **primary command** - a `PCOMM` - optionally followed by a single
+`|`-separated JSON object of keyword arguments. PCOMMS are the names registered in the
+`pcommand_map`, and only these two forms are valid:
 
 | sent | resulting call |
 | --- | --- |
-| `CMD;` | `func()` |
-| `CMD\|{"a": 1};` | `func(a=1)` |
-| `CMD\|pos1\|{};` | `func("pos1")` |
-| `CMD\|pos1\|{"b": 2};` | `func("pos1", b=2)` |
+| `PCOMM;` | `func()` |
+| `PCOMM\|{"a": 1};` | `func(a=1)` |
 
-Because the trailing segment is always treated as JSON, a single positional argument needs an
-explicit empty object: `CMD|pos1|{};`. Sending `CMD|pos1;` fails to decode and the message is
-logged as an error and dropped.
+There are no positional arguments - everything a handler needs is passed as keyword arguments
+through the JSON object. An empty payload (`PCOMM|;` or `PCOMM|{};`) is the same as sending the
+bare `PCOMM;`.
 
-#### Built-in commands
+Anything else is logged as an error and dropped: a payload that is not valid JSON
+(`PCOMM|abc;`), a payload that is not a JSON object (`PCOMM|[1, 2];`) and any message with more
+than one `|` (`PCOMM|a|{};`).
+
+#### Built-in PCOMMS
 
 These are handled by every server before the module specific `pcommand_map` is consulted:
 
-| command | effect |
+| PCOMM | effect |
 | --- | --- |
 | `STOP;` | stop all threads and subprocesses spawned by this module |
 | `CLOSE;` | stop listening and shut the server down |
 | `UP;` | health check, replies with `1` |
-| `GET_PCOMMS;` | replies with a `\|`-separated list of available commands, including `STOP` and `CLOSE` |
+| `GET_PCOMMS;` | replies with a `\|`-separated list of available PCOMMS, including `STOP` and `CLOSE` |
 
-Any other command is looked up in `pcommand_map`; unknown commands are logged as a warning
+Any other PCOMM is looked up in `pcommand_map`; unknown PCOMMS are logged as a warning
 and otherwise ignored.
 
 #### Defaults
@@ -88,11 +91,11 @@ and otherwise ignored.
 | `ip` | `"0.0.0.0"` | interface the server binds to |
 | `nlisten` | `10` | backlog of queued connections |
 | `name` | `"default_server"` | used in the connection banner `Connected to <name>` |
-| `delimiter` | `b";"` | command terminator used for framing |
-| `msg_interpreter` | `interpret_msg` | maps a parsed command onto a `pcommand_map` entry |
+| `delimiter` | `b";"` | PCOMM terminator used for framing |
+| `msg_interpreter` | `interpret_msg` | maps a parsed PCOMM onto a `pcommand_map` entry |
 | `thread_stopper` | `stop_thread` | how spawned threads are joined on `STOP`/shutdown |
 | `proc_stopper` | `stop_process` | how spawned subprocesses are terminated |
-| `pcommand_map` | `{}` | the module specific `command -> callable` mapping |
+| `pcommand_map` | `{}` | the module specific `PCOMM -> callable` mapping |
 
 The default logging server port is `9020` (see the Logging section below).
 
