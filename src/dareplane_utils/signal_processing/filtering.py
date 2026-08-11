@@ -39,13 +39,11 @@ class FilterBank:
     n_lookback : int
         Number of samples to look back for the moving average 'abs_ma' output transformation.
 
-    Methods
-    -------
-    filter(data, times)
-        Apply the filters to the input data and store the results in the ring buffer.
-
-    get_data()
-        Retrieve the filtered data from the ring buffer, applying the selected output transformation.
+    Notes
+    -----
+    The two main methods are `filter(data, times)`, which applies the filters to the input
+    data and stores the results in the ring buffer, and `get_data()`, which retrieves the
+    filtered data from the ring buffer, applying the selected output transformation.
     """
 
     def __init__(

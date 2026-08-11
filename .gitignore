@@ -160,3 +160,5 @@ _site/
 
 /.quarto/
 uv.lock
+
+**/*.quarto_ipynb

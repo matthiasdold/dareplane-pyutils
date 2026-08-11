@@ -36,6 +36,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest >= 8.2.2", "ruff"]
+# griffe is pinned because quartodoc has no renderer for the numpy "Methods"
+# docstring section that newer griffe versions emit as DocstringSectionFunctions
+docs = ["quartodoc >= 0.7.2", "griffe < 1.0"]
 
 [project.urls]
 "homepage" = "https://github.com/matthiasdold/dareplane-pyutils"

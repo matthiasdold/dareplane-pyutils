@@ -23,6 +23,97 @@ Currently we are faced with two functional incarnations of servers
    main thread (usually the server).
 2. Spawning a subprocess for running functionality - Currently necessary for running `psychopy` as it cannot be run from outside the main thread.
 
+### The TCP command protocol
+
+#### Framing
+
+**Every command must be terminated by a `;`.** TCP is a byte stream without message
+boundaries, so a single `recv` can return half a command or several concatenated ones. The
+server therefore buffers incoming bytes and only dispatches a command once it sees the
+delimiter. A command without a trailing `;` stays in the buffer and is *never* executed - it
+waits for the rest of the message to arrive.
+
+```python
+sock.sendall(b"MYCOMMAND;")               # dispatched
+sock.sendall(b"CMD_A;CMD_B;CMD_C;")       # all three dispatched, in order
+sock.sendall(b"MYCOMMAND")                # buffered, nothing happens
+```
+
+Empty segments and pure whitespace between delimiters are ignored, so `;;CMD;` is fine.
+
+If you connect via `ModuleConnection`, this is handled for you - `send_message` appends the
+delimiter when it is missing:
+
+```python
+conn.send_message(b"UP")    # b"UP;" goes on the wire
+```
+
+#### Command syntax
+
+Commands are `|`-separated. The **last** segment is always parsed as a JSON object of keyword
+arguments, any segments in between are passed as positional strings:
+
+| sent | resulting call |
+| --- | --- |
+| `CMD;` | `func()` |
+| `CMD\|{"a": 1};` | `func(a=1)` |
+| `CMD\|pos1\|{};` | `func("pos1")` |
+| `CMD\|pos1\|{"b": 2};` | `func("pos1", b=2)` |
+
+Because the trailing segment is always treated as JSON, a single positional argument needs an
+explicit empty object: `CMD|pos1|{};`. Sending `CMD|pos1;` fails to decode and the message is
+logged as an error and dropped.
+
+#### Built-in commands
+
+These are handled by every server before the module specific `pcommand_map` is consulted:
+
+| command | effect |
+| --- | --- |
+| `STOP;` | stop all threads and subprocesses spawned by this module |
+| `CLOSE;` | stop listening and shut the server down |
+| `UP;` | health check, replies with `1` |
+| `GET_PCOMMS;` | replies with a `\|`-separated list of available commands, including `STOP` and `CLOSE` |
+
+Any other command is looked up in `pcommand_map`; unknown commands are logged as a warning
+and otherwise ignored.
+
+#### Defaults
+
+`DefaultServer` is a dataclass - all of the below are constructor arguments:
+
+| field | default | meaning |
+| --- | --- | --- |
+| `port` | `8080` | port the server binds to |
+| `ip` | `"0.0.0.0"` | interface the server binds to |
+| `nlisten` | `10` | backlog of queued connections |
+| `name` | `"default_server"` | used in the connection banner `Connected to <name>` |
+| `delimiter` | `b";"` | command terminator used for framing |
+| `msg_interpreter` | `interpret_msg` | maps a parsed command onto a `pcommand_map` entry |
+| `thread_stopper` | `stop_thread` | how spawned threads are joined on `STOP`/shutdown |
+| `proc_stopper` | `stop_process` | how spawned subprocesses are terminated |
+| `pcommand_map` | `{}` | the module specific `command -> callable` mapping |
+
+The default logging server port is `9020` (see the Logging section below).
+
+Handlers registered in `pcommand_map` must return one of:
+
+- an `int` - fire and forget, nothing is tracked,
+- a `tuple[threading.Thread, threading.Event]` - the server tracks the thread and sets the
+  event on `STOP`,
+- a `subprocess.Popen` - the server tracks and terminates the process on `STOP`.
+
+Anything else raises `UnknownMsgInterpretation`.
+
+```python
+from dareplane_utils.default_server.server import DefaultServer
+
+server = DefaultServer(port=8080, name="my_module")
+server.pcommand_map = {"MYCOMMAND": my_handler}
+server.init_server()
+server.start_listening()
+```
+
 ## Logging
 
 The logging tools allow two main entry point, which are `from dareplane_utils.logging.logger import get_logger`, which is used to get a logger with the default configuration and `from dareplane_utils.logging.server import LogRecordSocketReceiver` which is used to spawn up a server for consolidating logs of different processes.
@@ -131,6 +222,26 @@ evloop = EventLoop(dt_s=0.1)  # process callbacks every 100ms
 # for a callback with no args we use lambda to blank the callback arg
 evloop.add_callback_once(lambda ctx: no_arg_callback())
 ```
+
+## Building the documentation
+
+The API reference is generated from the docstrings with
+[quartodoc](https://machow.github.io/quartodoc/) and rendered by
+[quarto](https://quarto.org/) (which has to be installed separately).
+
+```bash
+uv pip install -e ".[docs]"
+python -m quartodoc build   # regenerate reference/ and _sidebar.yml from _quarto.yml
+quarto render               # render the site into _site/
+```
+
+`reference/`, `objects.json` and `_site/` are generated output and are gitignored -
+`_sidebar.yml` is the only build product that is tracked, so re-run `quartodoc build`
+whenever sections are added to `_quarto.yml`.
+
+Note that quartodoc cannot render the numpy `Methods` docstring section - it generates a
+methods table from the class members itself, so list methods in a `Notes` section instead if
+they need extra explanation.
 
 ## TODO
 

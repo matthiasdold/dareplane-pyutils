@@ -45,7 +45,9 @@ def test_send_message_appends_delimiter(msg, expected):
     communicator = RecordingCommunicator()
     conn = ModuleConnection(
         name="test_connection",
-        launcher=PythonLauncher(cwd=Path("."), entry_point="tests.resources.test_server"),
+        launcher=PythonLauncher(
+            cwd=Path("."), entry_point="tests.resources.test_server"
+        ),
         communicator=communicator,
     )
 
@@ -58,8 +60,12 @@ def test_send_message_without_delimiter_is_handled_by_server():
     """End-to-end: an unterminated message must still reach the server intact"""
     connection = ModuleConnection(
         name="test_connection",
-        launcher=PythonLauncher(cwd=Path("."), entry_point="tests.resources.test_server"),
-        communicator=SocketCommunicator(name="test_communicator", ip="127.0.0.1", port=8080),
+        launcher=PythonLauncher(
+            cwd=Path("."), entry_point="tests.resources.test_server"
+        ),
+        communicator=SocketCommunicator(
+            name="test_communicator", ip="127.0.0.1", port=8080
+        ),
     )
 
     connection.start()
@@ -77,8 +83,12 @@ def test_module_connection():
     # Create a module connection with the test server as the target
     connection = ModuleConnection(
         name="test_connection",
-        launcher=PythonLauncher(cwd=Path("."), entry_point="tests.resources.test_server"),
-        communicator=SocketCommunicator(name="test_communicator", ip="127.0.0.1", port=8080),
+        launcher=PythonLauncher(
+            cwd=Path("."), entry_point="tests.resources.test_server"
+        ),
+        communicator=SocketCommunicator(
+            name="test_communicator", ip="127.0.0.1", port=8080
+        ),
     )
 
     connection.start()
@@ -86,10 +96,10 @@ def test_module_connection():
     time.sleep(2)
 
     # Check that the connection is alive
-    pid = connection.launcher.process.pid
+    pid = connection.launcher.process.pid  # type: ignore
     assert pid is not None
-    assert connection.launcher.process.poll() is None
-    assert connection.communicator.socket_c is not None
+    assert connection.launcher.process.poll() is None  # type: ignore
+    assert connection.communicator.socket_c is not None  # type: ignore
 
     connection.send_message(b"UP")
     response = connection.receive_message(size=2048)
@@ -98,7 +108,7 @@ def test_module_connection():
     # Stop the connection and check that the process is terminated
     connection.stop()
     time.sleep(1)
-    assert connection.launcher.process is None
+    assert connection.launcher.process is None  # type: ignore
 
     # Check that the pid is not running anymore
     with pytest.raises(psutil.NoSuchProcess):
@@ -107,22 +117,26 @@ def test_module_connection():
         # If the process is still alive, kill it to avoid leaving a dangling process
         proc.kill()
 
-    
+
 def test_module_connection_cleanup():
     # Create a module connection with the test server as the target
     connection = ModuleConnection(
         name="test_connection",
-        launcher=PythonLauncher(cwd=Path("."), entry_point="tests.resources.test_server"),
-        communicator=SocketCommunicator(name="test_communicator", ip="127.0.0.1", port=8080),
+        launcher=PythonLauncher(
+            cwd=Path("."), entry_point="tests.resources.test_server"
+        ),
+        communicator=SocketCommunicator(
+            name="test_communicator", ip="127.0.0.1", port=8080
+        ),
     )
 
     # Connect
     connection.start()
     time.sleep(2)
 
-    pid = connection.launcher.process.pid
+    pid = connection.launcher.process.pid  # type: ignore
     assert pid is not None
-    assert connection.launcher.process.poll() is None
+    assert connection.launcher.process.poll() is None  # type: ignore
 
     # Delete the connection object without explicitly stopping it, and check that the process is terminated
     del connection
@@ -147,7 +161,9 @@ def test_python_connection_with_args_and_kwargs():
         args=[str(port), "127.0.0.1"],
         kwargs={"command_name": cmd_name},
     )
-    communicator = SocketCommunicator(name="test_communicator", ip="127.0.0.1", port=port)
+    communicator = SocketCommunicator(
+        name="test_communicator", ip="127.0.0.1", port=port
+    )
 
     conn = ModuleConnection(
         name="test_connection",
@@ -163,3 +179,4 @@ def test_python_connection_with_args_and_kwargs():
     assert cmd_name in pcomms
 
     conn.stop()
+
