@@ -1,5 +1,6 @@
 import logging
 import subprocess
+import sys
 import time
 from pathlib import Path
 from logging.handlers import SocketHandler
@@ -66,7 +67,7 @@ def test_opt_out_of_network_logging():
 
 
 def run_logging_server() -> subprocess.Popen:
-    cmd = ["python", "-m", "dareplane_utils.logging.server", "--logfile=dareplane_test.log"]
+    cmd = [sys.executable, "-m", "dareplane_utils.logging.server", "--logfile=dareplane_test.log"]
     return subprocess.Popen(cmd)
 
 

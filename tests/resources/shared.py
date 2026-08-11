@@ -1,5 +1,6 @@
 # functions shard between test files
 import subprocess
+import sys
 import threading
 import time
 
@@ -13,7 +14,7 @@ def get_default_server(port: int = 8080) -> DefaultServer:
 
 
 def get_test_subprocess() -> subprocess.Popen:
-    p = subprocess.Popen(["python", "-m", "tests.resources.infinite_sleep"])
+    p = subprocess.Popen([sys.executable, "-m", "tests.resources.infinite_sleep"])
     return p
 
 
