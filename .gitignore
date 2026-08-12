@@ -163,3 +163,6 @@ uv.lock
 
 **/*.quarto_ipynb
 internalnote_*.md
+
+# generated at build time by setuptools-scm
+src/dareplane_utils/_version.py

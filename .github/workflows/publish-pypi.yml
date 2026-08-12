@@ -1,7 +1,10 @@
+# The published version comes from the git tag via setuptools-scm - there is no
+# version to bump in pyproject.toml.
+#
 # To create a release and trigger this workflow:
-#   1. Tag the commit:  git tag v0.0.22 <commit-hash>
-#   2. Push the tag:    git push origin v0.0.22
-#   3. Create release:  gh release create v0.0.22 --title "v0.0.22" --notes "Release notes here"
+#   1. Tag the commit:  git tag v0.0.24
+#   2. Push the tag:    git push origin v0.0.24
+#   3. Create release:  gh release create v0.0.24 --title "v0.0.24" --generate-notes
 
 name: Build and Publish Python Package
 
@@ -22,6 +25,10 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v6
+        with:
+          # setuptools-scm derives the version from `git describe`; the default
+          # shallow checkout has no tags and would yield a 0.1.dev* version
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6

@@ -1,10 +1,11 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=80.0", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "dareplane_utils"
-version = "0.0.23"
+# version is derived from the git tag by setuptools-scm
+dynamic = ["version"]
 authors = [{ name = "Matthias Dold", email = "matthias.dold@gmx.net" }]
 description = "Default utilities for the dareplane platform"
 readme = "README.md"
@@ -79,3 +80,7 @@ testpaths = ["tests"]
 # resources/ holds server entry points launched as subprocesses, not tests
 norecursedirs = ["tests/resources"]
 filterwarnings = ["ignore:::.*fire.core"]
+
+
+[tool.setuptools_scm]
+version_file = "src/dareplane_utils/_version.py"
