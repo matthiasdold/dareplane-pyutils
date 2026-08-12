@@ -390,11 +390,14 @@ class DefaultServer:
     def close_threads(self):
         # clean up potential threads
         self.logger.debug(f"Closing threads: {self.threads.items()}")
+        # snapshot: stopping a thread can take long enough for another one to be
+        # registered, and mutating the dict while iterating it raises
         removed_threads = []
-        for thid, (th, stop_event) in self.threads.items():
+        for thid, (th, stop_event) in list(self.threads.items()):
             stop_event.set()
             self.thread_stopper(th, logger=self.logger)
             removed_threads.append(thid)
+
         for k in removed_threads:
             self.threads.pop(k, None)
 
@@ -402,9 +405,10 @@ class DefaultServer:
         # clean up potential subprocesses
         self.logger.debug(f"Closing processes: {self.processes.items()}")
         removed_sprocesses = []
-        for spid, sp in self.processes.items():
+        for spid, sp in list(self.processes.items()):  # snapshot, see close_threads
             self.proc_stopper(sp, logger=self.logger)
             removed_sprocesses.append(spid)
+
         for k in removed_sprocesses:
             self.processes.pop(k, None)
 
