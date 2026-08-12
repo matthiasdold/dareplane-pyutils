@@ -81,17 +81,13 @@ def running_server(
     try:
         yield server
     finally:
-        # Setting the stop event alone is not enough: the loop is parked in a
-        # blocking accept()/recv() and only re-checks the flag once those return.
-        # Closing the sockets is what actually breaks out of them, so it has to
-        # happen before the join rather than in shutdown() afterwards. Both are
-        # needed - server_socket unblocks accept(), current_conn unblocks recv()
-        # for a client that is still connected.
+        # The stop event is sufficient on its own: accept() uses a finite timeout
+        # so the listen loop re-checks the flag at least every accept_timeout_s.
+        # Closing current_conn additionally unblocks a recv() that is waiting on a
+        # still-connected client, which just makes teardown return sooner.
         stop_event.set()
         if server.current_conn:
             server.current_conn.close()
-        if server.server_socket:
-            server.server_socket.close()
         server_thread.join(timeout=timeout_s)
         alive = server_thread.is_alive()
         server.shutdown()

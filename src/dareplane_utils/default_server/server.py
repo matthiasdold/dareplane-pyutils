@@ -70,6 +70,8 @@ class DefaultServer:
     ip: str = "0.0.0.0"
     nlisten: int = 10
     name: str = "default_server"
+    # how long accept() blocks before the listen loop re-checks the stop event
+    accept_timeout_s: float = 0.5
     delimiter: bytes = b";"
     thread_stopper: Callable = stop_thread
     proc_stopper: Callable = stop_process
@@ -109,7 +111,11 @@ class DefaultServer:
         # spawn a socket
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_socket.settimeout(None)
+        # A finite timeout keeps accept() interruptible: the loop in
+        # start_listening can only re-check listen_stop_event once accept()
+        # returns, so a blocking accept() would ignore a stop request until the
+        # next client connects.
+        server_socket.settimeout(self.accept_timeout_s)
         server_socket.bind((self.ip, self.port))
         server_socket.listen(self.nlisten)
         self.server_socket = server_socket
@@ -136,6 +142,10 @@ class DefaultServer:
             # TODO: implement dealing with multiple connection
             try:
                 current_conn, _ = self.server_socket.accept()  # type: ignore
+            except TimeoutError:
+                # no client within accept_timeout_s - go back and re-check the
+                # stop event, this is the normal idle path
+                continue
             except Exception as err:
                 if self.listen_stop_event.is_set():
                     break
@@ -144,6 +154,9 @@ class DefaultServer:
                 )
                 raise err
 
+            # an accepted socket inherits the listening socket's timeout - keep the
+            # connection itself blocking so recv() is not woken every interval
+            current_conn.settimeout(None)
             self.current_conn = current_conn
             self.on_connection_accepted()
 
