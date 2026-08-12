@@ -1,3 +1,4 @@
+import itertools
 import socket
 import subprocess
 import threading
@@ -81,6 +82,13 @@ class DefaultServer:
     )
     processes: dict[str, subprocess.Popen] = field(default_factory=dict)
     is_listening: bool = False
+    # Book keeping keys must stay unique even when several commands are handled
+    # within one clock tick. time.time_ns() returns nanosecond units but not
+    # nanosecond resolution - ~15.6ms on Windows - so the timestamp alone
+    # collides for identical commands arriving in a single packet.
+    _bookkeeping_counter: itertools.count = field(
+        default_factory=itertools.count, repr=False
+    )
     logger: Logger = get_logger(__name__)
 
     def init_server(self, stop_event: threading.Event | None = None):
@@ -301,6 +309,15 @@ class DefaultServer:
 
         return True
 
+    def _bookkeeping_key(self, msg: bytes) -> str:
+        """Build a unique key for the threads/processes book keeping.
+
+        The counter is required because several identical commands can arrive in
+        a single packet and be handled within one clock tick, which would make a
+        purely timestamp based key collide and silently drop entries.
+        """
+        return f"{time.time_ns()}_{next(self._bookkeeping_counter)}_{msg}"
+
     def msg_interpretation(self, msg: str):
         """Interpret the message and perform book keeping if necessary"""
         ret = interpret_msg(msg, self.pcommand_map, logger=self.logger)
@@ -317,11 +334,11 @@ class DefaultServer:
             and isinstance(ret[1], threading.Event)
         ):
             self.logger.debug(f"{msg=} returned a thread after interpretation")
-            self.threads[f"{time.time_ns()}_{msg}"] = ret
+            self.threads[self._bookkeeping_key(msg)] = ret
 
         elif isinstance(ret, subprocess.Popen):
             self.logger.debug(f"{msg=} returned a subprocess after interpretation")
-            self.processes[f"{time.time_ns()}_{msg}"] = ret
+            self.processes[self._bookkeeping_key(msg)] = ret
 
         else:
             raise UnknownMsgInterpretation(
