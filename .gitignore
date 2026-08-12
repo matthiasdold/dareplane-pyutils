@@ -160,3 +160,6 @@ _site/
 
 /.quarto/
 uv.lock
+
+**/*.quarto_ipynb
+internalnote_*.md

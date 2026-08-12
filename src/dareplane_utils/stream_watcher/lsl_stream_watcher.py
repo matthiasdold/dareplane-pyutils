@@ -1,6 +1,6 @@
 import ctypes
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 import pylsl

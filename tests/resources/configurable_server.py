@@ -2,9 +2,10 @@
 
 import threading
 
+from fire import Fire
+
 from dareplane_utils.default_server.server import DefaultServer
 from dareplane_utils.logging.logger import get_logger
-from fire import Fire
 
 logger = get_logger("testlogger")
 logger.setLevel(10)
@@ -19,7 +20,6 @@ def run_server(
     logger.setLevel(loglevel)
 
     pcommand_map = {
-        "GET_PCOMMS": "START|INIT|STOP|RUN_BLOCK",
         command_name: lambda: print(f"{command_name} received."),
     }
 

@@ -1,14 +1,10 @@
-import socket
 import sys
-import threading
 import time
 
 import psutil
-import pytest
 
-from dareplane_utils.default_server.server import DefaultServer
 from dareplane_utils.logging.logger import get_logger
-from tests.resources.shared import get_test_subprocess
+from tests.resources.shared import connected_client, get_test_subprocess, running_server
 
 logger = get_logger("testlogger")
 logger.setLevel("DEBUG")
@@ -20,83 +16,52 @@ PROCESS_TIMEOUT = 2.0 if IS_WINDOWS else 1.0
 # for checking which process is running at a given port, we can use netstat with e.g.
 # `netstat -anv -p tcp | grep 8080`
 
-
-@pytest.fixture
-def get_default_server_with_process_spawning():
-    # Init the server
-    server = DefaultServer(port=8080)
-    stop_event = threading.Event()
-    server.init_server(stop_event=stop_event)
-
-    # Add process creation capabilities
-    pcommand_map = {"STARTPROCESS": get_test_subprocess}
-    server.pcommand_map = pcommand_map
-
-    # Run the servers processing in a separate thread
-    stop_event.clear()  # in case it was set before
-    server_thread = threading.Thread(target=server.start_listening)
-    server_thread.start()
-
-    yield server_thread, stop_event, server
-
-    # Teardown
-    stop_event.set()
-    server_thread.join()
-    server.shutdown()
+PROCESS_PCOMMS = {"STARTPROCESS": get_test_subprocess}
 
 
-def test_spawning_processes_from_client(
-    get_default_server_with_process_spawning,
-):
-    server_thread, stop_event, server = get_default_server_with_process_spawning
+def test_spawning_processes_from_client():
+    with (
+        running_server(8093, pcommand_map=PROCESS_PCOMMS) as server,
+        connected_client(8093) as client,
+    ):
+        time.sleep(0.2 if IS_WINDOWS else 0.1)
 
-    time.sleep(0.2 if IS_WINDOWS else 0.1)
+        logger.debug("Sending STARTPROCESS")
+        client.sendall(b"STARTPROCESS;")
+        time.sleep(0.2 if IS_WINDOWS else 0.1)
 
-    # Send a message to the server to spawn a process
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect(("localhost", 8080))
+        logger.debug(f"{server.processes=}")
 
-    logger.debug("Sending STARTPROCESS")
-    client.sendall(b"STARTPROCESS;")
-    time.sleep(0.2 if IS_WINDOWS else 0.1)
+        # the process should be registerd for book keeping
+        assert len(server.processes.keys()) == 1
 
-    logger.debug(f"{server.processes=}")
-
-    # the process should be registerd for book keeping
-    assert len(server.processes.keys()) == 1
-
-    client.sendall(b"CLOSE;")
-    client.close()
+        client.sendall(b"CLOSE;")
 
 
-def test_stopping_processes(get_default_server_with_process_spawning):
-    server_thread, stop_event, server = get_default_server_with_process_spawning
+def test_stopping_processes():
+    with (
+        running_server(8094, pcommand_map=PROCESS_PCOMMS) as server,
+        connected_client(8094) as client,
+    ):
+        client.sendall(b"STARTPROCESS;")
 
-    # Send a message to the server to spawn a process
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect(("localhost", 8080))
-    client.sendall(b"STARTPROCESS;")
+        # the process should be registerd for book keeping
+        time.sleep(0.2 if IS_WINDOWS else 0.1)  # allow for thread to spawn
+        subp = next(iter(server.processes.values()))
 
-    # the process should be registerd for book keeping
-    time.sleep(0.2 if IS_WINDOWS else 0.1)  # allow for thread to process command and spawn
-    subp = list(server.processes.values())[0]
-    # print(f"{subp=}")
-    # print(f"{psutil.Process(subp).children()=}")
+        server.close_processes()
 
-    server.close_processes()
+        # Give Windows more time to terminate processes
+        time.sleep(PROCESS_TIMEOUT)
 
-    # Give Windows more time to terminate processes
-    time.sleep(PROCESS_TIMEOUT)
+        assert len(server.processes.keys()) == 0
 
-    assert len(server.processes.keys()) == 0
+        # Validate that the process was killed by checking the children
+        try:
+            parent_ps = psutil.Process(subp.pid)
+            assert parent_ps.children() == []
+        except psutil.NoSuchProcess:
+            # Process already terminated - this is fine
+            pass
 
-    # Validate that the process was killed by checking the children
-    try:
-        parent_ps = psutil.Process(subp.pid)
-        assert parent_ps.children() == []
-    except psutil.NoSuchProcess:
-        # Process already terminated - this is fine
-        pass
-    
-    client.sendall(b"CLOSE;")
-    client.close()
+        client.sendall(b"CLOSE;")

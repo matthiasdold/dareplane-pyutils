@@ -102,7 +102,7 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
         # if a name is specified, we use the named logger rather than the one
         # implied by the record.
         if self.server.logname is not None:
-            name = self.server.logname
+            name: str = self.server.logname
         else:
             name = record.name
 
@@ -120,12 +120,12 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
     Simple TCP socket-based logging receiver suitable for testing.
     """
 
-    allow_reuse_address = 1
+    allow_reuse_address = 1  # type: ignore
 
     def __init__(
         self,
         host="localhost",
-        port=logging.handlers.DEFAULT_TCP_LOGGING_PORT,  # 9020
+        port=logging.handlers.DEFAULT_TCP_LOGGING_PORT,  # 9020 # type: ignore
         handler=LogRecordStreamHandler,
         logfile: Path = Path("default_socket.log"),
     ):
@@ -152,15 +152,15 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 def modify_root_logger(logfile: Path):
     cfg = default_dareplane_config.copy()
     # Set the target log file
-    cfg["handlers"]["file"] = {
+    cfg["handlers"]["file"] = {  # type: ignore
         "class": "logging.FileHandler",
         "filename": str(logfile.resolve()),
         "formatter": "dareplane_standard",
     }
 
     # Filtering should be done at client level - server will log all
-    cfg["root"]["level"] = logging.DEBUG
-    cfg["root"]["handlers"] = ["console", "file"]
+    cfg["root"]["level"] = logging.DEBUG  # type: ignore
+    cfg["root"]["handlers"] = ["console", "file"]  # type: ignore
 
     logging.config.dictConfig(cfg)
 

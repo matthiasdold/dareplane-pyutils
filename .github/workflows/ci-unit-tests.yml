@@ -5,6 +5,7 @@ on: [push]
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10   # should be sufficient with current local run  ~1.5min
     strategy:
       fail-fast: false
       matrix:
@@ -36,6 +37,10 @@ jobs:
         continue-on-error: true
       - name: Test with pytest
         run: pytest . -vv
+        env:
+          # Runners are slower than a dev machine - allow more grace for the
+          # test servers to stop before the teardown reports a stuck thread.
+          DP_TEST_SHUTDOWN_TIMEOUT_S: ${{ matrix.os == 'windows-latest' && '20' || '15' }}
       # run: coverage run -m pytest -v -s
       # - name: Generate test report
       #   run: coverage report -m

@@ -17,12 +17,10 @@ class UJsonSocketHandler(logging.handlers.SocketHandler):
     Additionally, the `makeSocket` method is overridden to set a custom (short) timeout for socket connections.
     This way, if the log server is not available, the application will not hang for too long trying to connect.
 
-    Methods
-    -------
-    makePickle(record: logging.LogRecord) -> bytes
-        Serialize the log record to a JSON-formatted byte string.
-    makeSocket(timeout=1) -> socket.socket
-        Create a socket with a specified timeout.
+    Notes
+    -----
+    `makePickle(record)` serializes the log record to a JSON-formatted byte string and
+    `makeSocket(timeout=1)` creates a socket with the specified timeout.
     """
 
     def makeSocket(self, timeout=1):

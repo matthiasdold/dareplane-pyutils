@@ -1,10 +1,10 @@
+import socket
 import subprocess
 import sys
 import time
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
-import socket
 
 from dareplane_utils.logging.logger import get_logger
 from dareplane_utils.module_handling.communication import SocketCommunicator
@@ -63,18 +63,18 @@ def test_connection_to_server(server_process):
 
     sc.socket_c.settimeout(2)  # Set a timeout for receiving data
 
-    sc.send(b"UP")
+    sc.send(b"UP;")
     response = sc.receive(2048).decode()
 
     assert response == "1", f"Expected response '1' but got {response}"
-      
+
 
 @pytest.fixture
 def slow_server_process() -> Iterator[subprocess.Popen]:
     proc = subprocess.Popen(
         [sys.executable, "-m", "tests.resources.slow_test_server"],
     )
-    
+
     yield proc
 
     # Teardown
@@ -91,7 +91,7 @@ def test_server_accepts_reconnect_after_client_disconnect(server_process):
     sc1 = SocketCommunicator(ip="127.0.0.1", port=8080, name="test_first")
     sc1.connect()
     sc1.socket_c.settimeout(2)
-    sc1.send(b"UP")
+    sc1.send(b"UP;")
     assert sc1.receive(2048).decode() == "1"
     sc1.disconnect()
 
@@ -103,7 +103,7 @@ def test_server_accepts_reconnect_after_client_disconnect(server_process):
     sc2.connect()
     assert sc2.socket_c is not None
     sc2.socket_c.settimeout(2)
-    sc2.send(b"UP")
+    sc2.send(b"UP;")
     assert sc2.receive(2048).decode() == "1"
     sc2.disconnect()
 
@@ -123,7 +123,7 @@ def test_retry_connection_after_s_for_slow_startup(slow_server_process):
 
     time.sleep(0.5)  # wait a bit to ensure response arrived
 
-    sc.send(b"GET_PCOMMS")
+    sc.send(b"GET_PCOMMS;")
     pcoms = sc.receive(2048).decode("utf-8")
     assert pcoms is not None, "Did not receive any response from the server"
     assert "SLOWSERVERTEST" in pcoms, (

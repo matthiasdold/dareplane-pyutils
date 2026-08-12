@@ -4,8 +4,8 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from logging import Logger
-from typing import Callable
 
 import psutil
 
@@ -22,10 +22,14 @@ def noop(*args, **kwargs) -> int:
 
 
 def parse_msg(
-    msg: str, pcommand_map: dict, logger: Logger = logger
+    msg: bytes, pcommand_map: dict, logger: Logger = logger
 ) -> tuple[Callable, tuple, dict]:
     """
     Parse a bytes msg and return the relevant function + potential kwargs
+
+    A msg is either a bare PCOMM (``PCOMM``) or a PCOMM with a single JSON
+    object of keyword arguments (``PCOMM|{"a": 1}``). Anything else is
+    rejected and mapped onto a noop.
 
     Parameters
     ----------
@@ -39,7 +43,7 @@ def parse_msg(
     func : Callable
         the function to call
     args : tuple
-        args to use for the function call
+        args to use for the function call, always empty
     kwargs : dict
         kwargs to pass to the function
 
@@ -47,28 +51,42 @@ def parse_msg(
 
     logger.debug(f"Splitting: {msg=}")
     split = msg.decode().split("|")
+
+    if len(split) > 2:
+        logger.error(
+            f"Expected at most one '|' separated json payload in {msg.decode()=},"
+            f" got {len(split) - 1}, ignoring msg!"
+        )
+        return noop, (), {}
+
     pcomm = split[0]
-    args = split[1:-1]
     try:
-        kwargs = json.loads(split[-1]) if len(split) > 1 else {}
+        kwargs = json.loads(split[1]) if len(split) == 2 and split[1] != "" else {}
     except json.JSONDecodeError as e:
         logger.error(
             f"Could not parse json payload {msg.decode()=}: {e}, ignoring msg!"
         )
         return noop, (), {}  # NOOP with no args or kwargs
 
-    return pcommand_map[pcomm], args, kwargs
+    if not isinstance(kwargs, dict):
+        logger.error(
+            f"Json payload of {msg.decode()=} is no object of keyword arguments,"
+            " ignoring msg!"
+        )
+        return noop, (), {}
+
+    return pcommand_map[pcomm], (), kwargs
 
 
 # This is the default behavior for interpretation of messages
 def interpret_msg(
-    binary_msg: str, pcommand_map: dict, logger: Logger = logger, **kwargs
+    binary_msg: bytes, pcommand_map: dict, logger: Logger = logger, **kwargs
 ) -> threading.Thread | subprocess.Popen | int:
     """Interpret a message and start a threading, subprocess or return an int
 
     Parameters
     ----------
-    binary_msg : str
+    binary_msg : bytes
         the binary string msg as received by the socket
     pcommand_map : dict
         a map of primary commands to functions
@@ -88,7 +106,7 @@ def interpret_msg(
         binary_msg, pcommand_map=pcommand_map, logger=logger
     )
 
-    # Add kwargs which might have been passed to the server     # noqa
+    # Add kwargs which might have been passed to the server
     pkwargs.update(**kwargs)
 
     # Note, if func is a decorated function, we would not have a __name__

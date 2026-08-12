@@ -1,8 +1,10 @@
 import logging
 import subprocess
+import sys
 import time
-from pathlib import Path
 from logging.handlers import SocketHandler
+from pathlib import Path
+
 import psutil
 import pytest
 
@@ -66,7 +68,7 @@ def test_opt_out_of_network_logging():
 
 
 def run_logging_server() -> subprocess.Popen:
-    cmd = ["python", "-m", "dareplane_utils.logging.server", "--logfile=dareplane_test.log"]
+    cmd = [sys.executable, "-m", "dareplane_utils.logging.server", "--logfile=dareplane_test.log"]
     return subprocess.Popen(cmd)
 
 
@@ -87,7 +89,6 @@ def stop_process_and_children(p: psutil.Process):
                 raise TerminationError(f"Cannot stop process {p=} from running")
     except psutil.NoSuchProcess as err:
         print(f"{err=}")
-        pass
 
 
 def test_logging_server(reset_logging):
@@ -123,7 +124,7 @@ def test_logging_server(reset_logging):
             time.sleep(1)
             # Check last lines in log file
             print("Reading the logfile")
-            with open(testf, "r") as fl:
+            with open(testf) as fl:
                 ll = fl.readlines()
 
             # delete the loggers to get rid of file handlers, which might block

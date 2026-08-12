@@ -26,7 +26,7 @@ class FilterBank:
         Dictionary of frequency bands to filter.
     order : int
         Order of the filter.
-    type : str (default: 'butter')
+    filter_type : str (default: 'butter')
         Type of filter to use. Currently only 'butter' is implemented. Using the naming convention of scipy.signal.
     sfreq : int
         Sampling frequency of the input signal.
@@ -39,20 +39,18 @@ class FilterBank:
     n_lookback : int
         Number of samples to look back for the moving average 'abs_ma' output transformation.
 
-    Methods
-    -------
-    filter(data, times)
-        Apply the filters to the input data and store the results in the ring buffer.
-
-    get_data()
-        Retrieve the filtered data from the ring buffer, applying the selected output transformation.
+    Notes
+    -----
+    The two main methods are `filter(data, times)`, which applies the filters to the input
+    data and stores the results in the ring buffer, and `get_data()`, which retrieves the
+    filtered data from the ring buffer, applying the selected output transformation.
     """
 
     def __init__(
         self,
-        bands: dict[str, list[float, float]],
+        bands: dict[str, list[float]],
         order: int = 8,
-        type: str = "butter",
+        filter_type: str = "butter",
         sfreq: int = 1000,
         output: str = "signal",
         n_in_channels: int = 1,
@@ -68,8 +66,18 @@ class FilterBank:
         # Used if output is 'abs_ma'
         self.n_lookback = n_lookback
 
+        filter_map = {"butter": butter}
+        if filter_type not in filter_map:
+            raise ValueError(
+                f"Unknown filter type: {filter_type} - available filters: {filter_map.keys()}"
+            )
+
+        self.filter_type = filter_type
+
         self.sos = {
-            k: butter(
+            k: filter_map[
+                filter_type
+            ](  # butter( ... ) << as the currely only implemented filter
                 order,
                 (v[0], v[1]),
                 btype="bandpass",
@@ -90,7 +98,7 @@ class FilterBank:
         }
 
         self.ring_buffer = RingBuffer(
-            (int(sfreq * filter_buffer_s), len(self.ch_names), len(bands))
+            (int(sfreq * filter_buffer_s), len(self.ch_names), len(bands))  # type: ignore
         )
 
         self.output_posprocessing_map = {
@@ -123,7 +131,7 @@ class FilterBank:
         for i, (k, sos) in enumerate(self.sos.items()):
             (fdata[i, :, :], self.zis[k]) = sosfilt(sos, data.T, zi=self.zis[k])
 
-        self.ring_buffer.add_samples(fdata.T, times)
+        self.ring_buffer.add_samples(fdata.T, times)  # type: ignore
         self.n_new += data.shape[0]
 
     def get_data(self) -> np.ndarray:

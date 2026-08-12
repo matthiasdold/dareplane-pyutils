@@ -4,7 +4,14 @@ website:
     - reference/index.qmd
     - contents:
       - reference/DefaultServer.qmd
+      - reference/DefaultCallbackServer.qmd
       section: Server
+    - contents:
+      - reference/parse_msg.qmd
+      - reference/interpret_msg.qmd
+      - reference/stop_thread.qmd
+      - reference/stop_process.qmd
+      section: Server message handling
     - contents:
       - reference/logger.get_logger.qmd
       - reference/ujson_socket_handler.UJsonSocketHandler.qmd
@@ -26,5 +33,18 @@ website:
       - reference/event_loop.EventLoop.qmd
       - reference/event_loop.DelayedCallback.qmd
       section: General
+    - contents:
+      - reference/module_connection.ModuleConnection.qmd
+      - reference/launcher.Launcher.qmd
+      - reference/launcher.PythonLauncher.qmd
+      - reference/launcher.ExeLauncher.qmd
+      - reference/launcher.close_process_and_child_processes.qmd
+      - reference/communication.Communicator.qmd
+      - reference/communication.SocketCommunicator.qmd
+      section: Module handling
+    - contents:
+      - reference/filtering.FilterBank.qmd
+      - reference/filtering.abs_moving_average.qmd
+      section: Signal processing
     id: reference
   - id: dummy-sidebar
