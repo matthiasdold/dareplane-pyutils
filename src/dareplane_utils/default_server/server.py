@@ -3,6 +3,7 @@ import socket
 import subprocess
 import threading
 import time
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from logging import Logger
@@ -413,13 +414,13 @@ class DefaultCallbackServer(DefaultServer):
 
     Attributes
     ----------
-    callback_stack : list[str]
-        A list of callback payloads, which will be sent to connected clients.
+    callback_stack : collections.deque[str]
+        Callback payloads, which will be sent to connected clients. A deque is
+        used because `append` and `popleft` are atomic, so a producer thread and
+        the callback thread can share it without additional locking.
     """
 
-    callback_stack: list[str] = field(
-        default_factory=list
-    )  # list of callback payloads, which will be sent to connected clients
+    callback_stack: deque[str] = field(default_factory=deque)
 
     def on_connection_accepted(self):
         """Spawn the thread sending queued callbacks to the freshly connected client"""
@@ -449,6 +450,11 @@ def process_callbacks(server: DefaultCallbackServer, stop_event: threading.Event
     If there are messages in the stack, it sends them to the connected client and removes them from the stack.
     The function stops processing when the stop event is set.
 
+    A failed send ends the thread: the payloads are bound to the connection this
+    thread was spawned for, and a fresh thread is started for the next client by
+    `DefaultCallbackServer.on_connection_accepted`. Delivery is therefore at most
+    once - a payload popped for a connection that dies is not re-queued.
+
     Parameters
     ----------
     server : DefaultCallbackServer
@@ -459,7 +465,26 @@ def process_callbacks(server: DefaultCallbackServer, stop_event: threading.Event
 
     # Process callback stack
     while not stop_event.is_set():
-        while len(server.callback_stack) > 0:
-            server.current_conn.sendall(server.callback_stack.pop(0).encode())  # type: ignore
+        # snapshot: current_conn is replaced on the next accept() and closed by
+        # shutdown(), so it must not be re-read between the check and the send
+        conn = server.current_conn
+        if conn is None:
+            sleep_s(0.001)
+            continue
 
-        sleep_s(0.001)
+        try:
+            payload = server.callback_stack.popleft()
+        except IndexError:  # nothing queued - deque keeps this atomic
+            sleep_s(0.001)
+            continue
+
+        try:
+            conn.sendall(payload.encode())
+        except OSError:
+            # the socket was closed under us: either an orderly shutdown, or the
+            # client vanished. Either way this thread's connection is gone.
+            if not stop_event.is_set():
+                server.logger.warning(
+                    "Callback connection lost, stopping callback thread"
+                )
+            break

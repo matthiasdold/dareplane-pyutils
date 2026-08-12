@@ -5,9 +5,7 @@ on: [push]
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-    # the suite completes in ~1.5min - this only caps a genuinely stuck run, which
-    # would otherwise sit until the 6h GitHub default
-    timeout-minutes: 20
+    timeout-minutes: 10   # should be sufficient with current local run  ~1.5min
     strategy:
       fail-fast: false
       matrix:
