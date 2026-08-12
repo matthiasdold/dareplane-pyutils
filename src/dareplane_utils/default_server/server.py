@@ -14,7 +14,6 @@ from dareplane_utils.default_server.functions import (
 from dareplane_utils.general.time import sleep_s
 from dareplane_utils.logging.logger import get_logger
 
-
 # Commands handled by the server itself, before any pcommand_map lookup. Listed
 # in GET_PCOMMS responses so clients can discover them without a map entry.
 BUILT_IN_PCOMMS = ["STOP", "CLOSE", "GET_PCOMMS", "UP"]
@@ -22,7 +21,6 @@ BUILT_IN_PCOMMS = ["STOP", "CLOSE", "GET_PCOMMS", "UP"]
 
 class UnknownMsgInterpretation(Exception):
     """Raised when the interpretation of a message is unknown"""
-
 
 
 @dataclass
@@ -129,8 +127,10 @@ class DefaultServer:
             # for now just work on one / the current connection, implement
             # TODO: implement dealing with multiple connection
             try:
-                current_conn, addr = self.server_socket.accept()  # type: ignore
+                current_conn, _ = self.server_socket.accept()  # type: ignore
             except Exception as err:
+                if self.listen_stop_event.is_set():
+                    break
                 self.logger.error(
                     f"Error accepting connection at {self.ip=}, {self.port=}, {self.server_socket=}"
                 )
@@ -191,6 +191,10 @@ class DefaultServer:
                 self.logger.info("Connection was reset by host")
                 break
             except Exception as err:
+                # as in start_listening: a blocked recv() fails when the socket is
+                # closed to stop the server, which is an intentional exit
+                if self.listen_stop_event.is_set():
+                    break
                 self.logger.error(f"Caught error {err=}")
                 self.is_listening = False
                 raise err
@@ -221,7 +225,6 @@ class DefaultServer:
                 if pc != b"":
                     self.handle_msg(pc)
         else:
-
             # Default functionality which should always be there
             # and the same for all servers
             is_default_command = self.default_msg_interpretation(msg)
@@ -288,11 +291,7 @@ class DefaultServer:
             )  # common start byte, would lead to an error in decode otherwise
 
             self.current_conn.sendall(  # type: ignore
-                (
-                    "|".join(
-                        list(self.pcommand_map.keys()) + BUILT_IN_PCOMMS
-                    )
-                ).encode()
+                ("|".join(list(self.pcommand_map.keys()) + BUILT_IN_PCOMMS)).encode()
             )
         elif msg == b"UP":
             self.current_conn.sendall(b"1")  # type: ignore

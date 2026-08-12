@@ -9,7 +9,6 @@ import time
 
 from dareplane_utils.default_server.server import DefaultServer
 
-
 # Teardown grace period. CI runners are slower than a dev machine, so allow an
 # override via the environment instead of hardcoding a single value.
 SHUTDOWN_TIMEOUT_S = float(os.environ.get("DP_TEST_SHUTDOWN_TIMEOUT_S", "5"))
