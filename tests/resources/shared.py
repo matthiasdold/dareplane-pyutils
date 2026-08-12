@@ -51,9 +51,13 @@ def running_server(
     finally:
         # Setting the stop event alone is not enough: the loop is parked in a
         # blocking accept()/recv() and only re-checks the flag once those return.
-        # Closing the listening socket is what actually breaks accept(), so it
-        # has to happen before the join rather than in shutdown() afterwards.
+        # Closing the sockets is what actually breaks out of them, so it has to
+        # happen before the join rather than in shutdown() afterwards. Both are
+        # needed - server_socket unblocks accept(), current_conn unblocks recv()
+        # for a client that is still connected.
         stop_event.set()
+        if server.current_conn:
+            server.current_conn.close()
         if server.server_socket:
             server.server_socket.close()
         server_thread.join(timeout=timeout_s)
@@ -66,11 +70,24 @@ def running_server(
 
 
 @contextlib.contextmanager
-def connected_client(port: int):
-    """Yield a TCP client connected to `port`, closed on exit."""
+def connected_client(port: int, drain_banner: bool = False):
+    """Yield a TCP client connected to `port`, closed on exit.
+
+    Parameters
+    ----------
+    port : int
+        Port to connect to.
+    drain_banner : bool
+        If True, consume the ``Connected to <name>`` greeting the server sends on
+        accept. Required before asserting on a command response, otherwise the
+        first recv() returns the banner instead of the reply.
+    """
     c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     c.connect(("localhost", port))
     try:
+        if drain_banner:
+            c.settimeout(2)
+            c.recv(1024)
         yield c
     finally:
         c.close()

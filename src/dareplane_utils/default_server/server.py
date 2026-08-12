@@ -301,7 +301,9 @@ class DefaultServer:
             self.current_conn.sendall(  # type: ignore
                 ("|".join(list(self.pcommand_map.keys()) + BUILT_IN_PCOMMS)).encode()
             )
-        elif msg == b"UP":
+        # same variants as STOP/CLOSE above - clients may terminate with \r\n or
+        # an empty argument separator, both of which must still be recognised
+        elif msg in (b"UP", b"UP\r\n", b"UP|\r\n", b"UP|"):
             self.current_conn.sendall(b"1")  # type: ignore
         else:
             # Nothing was done
