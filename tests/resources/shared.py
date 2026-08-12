@@ -13,6 +13,38 @@ from dareplane_utils.default_server.server import DefaultServer
 # override via the environment instead of hardcoding a single value.
 SHUTDOWN_TIMEOUT_S = float(os.environ.get("DP_TEST_SHUTDOWN_TIMEOUT_S", "5"))
 
+# Upper bound for wait_until. Only reached when an expectation genuinely fails,
+# so it can be generous without slowing down the passing case.
+CONDITION_TIMEOUT_S = float(os.environ.get("DP_TEST_CONDITION_TIMEOUT_S", "5"))
+
+
+def wait_until(predicate, timeout_s: float | None = None, interval_s: float = 0.01):
+    """Poll `predicate` until it is truthy, or `timeout_s` elapses.
+
+    Preferred over a fixed ``time.sleep`` before an assertion: it returns as soon
+    as the condition holds, so the passing case stays fast, while still tolerating
+    a slow CI runner. Returns the predicate's last value, so a caller can assert on
+    it directly.
+
+    Parameters
+    ----------
+    predicate : Callable[[], Any]
+        Called repeatedly; polling stops as soon as it returns a truthy value.
+    timeout_s : float | None
+        Maximum time to wait. Defaults to CONDITION_TIMEOUT_S, settable via
+        ``DP_TEST_CONDITION_TIMEOUT_S``.
+    interval_s : float
+        Delay between polls.
+    """
+    deadline = time.time() + (
+        timeout_s if timeout_s is not None else CONDITION_TIMEOUT_S
+    )
+    value = predicate()
+    while not value and time.time() < deadline:
+        time.sleep(interval_s)
+        value = predicate()
+    return value
+
 
 @contextlib.contextmanager
 def running_server(
