@@ -162,3 +162,4 @@ _site/
 uv.lock
 
 **/*.quarto_ipynb
+internalnote_*.md
