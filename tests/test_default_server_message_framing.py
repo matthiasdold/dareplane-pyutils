@@ -79,27 +79,28 @@ def test_up_is_not_logged(up_msg, port):
     with (
         running_server(port) as server,
         connected_client(port, drain_banner=True) as client,
+        capture_logs(server) as log_records,
     ):
-        with capture_logs(server) as log_records:
-            client.sendall(up_msg)
-            time.sleep(0.15)
+        client.sendall(up_msg)
+        time.sleep(0.15)
 
-            # the health check must actually be answered - asserting only on the
-            # absence of a log line would also pass for an unhandled command
-            assert client.recv(16) == b"1"
-            assert not [r for r in log_records if "Received:" in r.getMessage()]
-            assert not [
-                r for r in log_records if "Unknown pcomm" in r.getMessage()
-            ]
+        # the health check must actually be answered - asserting only on the
+        # absence of a log line would also pass for an unhandled command
+        assert client.recv(16) == b"1"
+        assert not [r for r in log_records if "Received:" in r.getMessage()]
+        assert not [r for r in log_records if "Unknown pcomm" in r.getMessage()]
 
 
 def test_other_pcomms_are_still_logged():
     """Only UP is silenced - regular PCOMMS are still logged at INFO"""
-    with running_server(8090) as server, connected_client(8090) as client:
-        with capture_logs(server) as log_records:
-            client.sendall(b"STARTTHREAD;")
-            time.sleep(0.15)
+    with (
+        running_server(8090) as server,
+        connected_client(8090) as client,
+        capture_logs(server) as log_records,
+    ):
+        client.sendall(b"STARTTHREAD;")
+        time.sleep(0.15)
 
-            received = [r for r in log_records if "Received:" in r.getMessage()]
-            assert len(received) == 1
-            assert received[0].levelname == "INFO"
+        received = [r for r in log_records if "Received:" in r.getMessage()]
+        assert len(received) == 1
+        assert received[0].levelname == "INFO"
