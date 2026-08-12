@@ -4,8 +4,8 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from logging import Logger
-from typing import Callable
 
 import psutil
 
@@ -106,7 +106,7 @@ def interpret_msg(
         binary_msg, pcommand_map=pcommand_map, logger=logger
     )
 
-    # Add kwargs which might have been passed to the server     # noqa
+    # Add kwargs which might have been passed to the server
     pkwargs.update(**kwargs)
 
     # Note, if func is a decorated function, we would not have a __name__

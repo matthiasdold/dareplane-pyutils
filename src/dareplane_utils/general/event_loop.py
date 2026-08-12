@@ -1,9 +1,10 @@
 # A plain event_loop which precisely adheres to timing by using the adjusted sleep_s
 import inspect
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from threading import Event
-from typing import Any, Callable, Optional
+from typing import Any
 
 from dareplane_utils.general.time import sleep_s
 
@@ -107,7 +108,7 @@ class EventLoop:
     """
 
     def __init__(
-        self, dt_s: float, stop_event: Optional[Event] = None, ctx: Optional[Any] = None
+        self, dt_s: float, stop_event: Event | None = None, ctx: Any | None = None
     ):
         """
         Initialize the EventLoop with a specified time interval and optional context.

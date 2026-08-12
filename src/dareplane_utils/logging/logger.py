@@ -66,7 +66,7 @@ def get_logger(
     if not _config_applied:
         logging.config.dictConfig(default_dareplane_config)
         _config_applied = True
-    
+
     logger = logging.getLogger(name)
     root_logger = logging.getLogger()
 
@@ -82,7 +82,7 @@ def get_logger(
     ]
     if socket_handlers:
         socket_handler = socket_handlers[0]
-        
+
         # Warn once if socket handler cannot connect (helps debugging)
         if not hasattr(socket_handler, '_connection_warned'):
             try:
@@ -99,7 +99,7 @@ def get_logger(
                     stacklevel=2
                 )
             socket_handler._connection_warned = True
-        
+
         logger.addHandler(socket_handler)  # add socket handler
 
     if no_socket_handler:

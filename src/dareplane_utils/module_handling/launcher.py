@@ -1,18 +1,18 @@
-from abc import ABC, abstractmethod
-from subprocess import Popen
-from pathlib import Path
 import os
 import subprocess
-import time
 import sys
+import time
 import warnings
+from abc import ABC, abstractmethod
+from pathlib import Path
+from subprocess import Popen
 
 import psutil
 
 
 class Launcher(ABC):
     """Base class for launching different types of processes."""
-    
+
     @abstractmethod
     def launch(self, relaunch: bool = False, **kwargs) -> Popen:
         """Launch the process.
@@ -29,12 +29,10 @@ class Launcher(ABC):
         subprocess.Popen
             Handle to the launched process.
         """
-        pass
-    
+
     @abstractmethod
     def terminate(self) -> None:
         """Terminate and clean up a launched process."""
-        pass
 
 
 class PythonLauncher(Launcher):
@@ -70,9 +68,9 @@ class PythonLauncher(Launcher):
         if isinstance(cwd, str):
             cwd = Path(cwd)
         self.cwd = cwd
-        
+
         assert self.cwd.exists(), f"Directory {self.cwd} does not exist"
-    
+
     def launch(self, relaunch: bool = False, **popen_kwargs) -> Popen:
         if self.process and not relaunch:
             warnings.warn(
@@ -81,7 +79,7 @@ class PythonLauncher(Launcher):
                     stacklevel=2
                 )
             return self.process
-        
+
         if self.process and relaunch:
             self.terminate()
             self.process = None
@@ -136,8 +134,8 @@ class ExeLauncher(Launcher):
 
         assert self.cwd.exists(), f"Directory {self.cwd} does not exist"
         assert self.exe_path.exists(), f"Executable {self.exe_path} does not exist"
-        
-    
+
+
     def launch(self, relaunch: bool = False, **popen_kwargs) -> Popen:
         if self.process and not relaunch:
             warnings.warn(
@@ -146,7 +144,7 @@ class ExeLauncher(Launcher):
                     stacklevel=2
                 )
             return self.process
-        
+
         if self.process and relaunch:
             self.terminate()
             self.process = None
@@ -159,7 +157,7 @@ class ExeLauncher(Launcher):
 
         self.process = subprocess.Popen([str(self.exe_path)] + self.args, **popen_kwargs)
         return self.process
-    
+
     def terminate(self) -> None:
         if self.process:
             close_process_and_child_processes(self.process)

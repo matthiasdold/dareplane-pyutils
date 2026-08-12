@@ -1,10 +1,10 @@
+import socket
 import subprocess
 import sys
 import time
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
-import socket
 
 from dareplane_utils.logging.logger import get_logger
 from dareplane_utils.module_handling.communication import SocketCommunicator
@@ -67,14 +67,14 @@ def test_connection_to_server(server_process):
     response = sc.receive(2048).decode()
 
     assert response == "1", f"Expected response '1' but got {response}"
-      
+
 
 @pytest.fixture
 def slow_server_process() -> Iterator[subprocess.Popen]:
     proc = subprocess.Popen(
         [sys.executable, "-m", "tests.resources.slow_test_server"],
     )
-    
+
     yield proc
 
     # Teardown

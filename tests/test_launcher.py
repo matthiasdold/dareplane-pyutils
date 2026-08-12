@@ -1,6 +1,8 @@
-from dareplane_utils.module_handling.launcher import PythonLauncher
-from pathlib import Path
 import time
+from pathlib import Path
+
+from dareplane_utils.module_handling.launcher import PythonLauncher
+
 
 def test_python_launcher():
     launcher = PythonLauncher(
@@ -19,5 +21,6 @@ def test_python_launcher():
 
     if process.poll() is None:
         process.kill()
+
 
 # TODO: add tests for ExeLauncher

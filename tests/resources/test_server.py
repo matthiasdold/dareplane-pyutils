@@ -2,14 +2,16 @@
 
 import threading
 
+from fire import Fire
+
 from dareplane_utils.default_server.server import DefaultServer
 from dareplane_utils.logging.logger import get_logger
-from fire import Fire
 
 logger = get_logger("testlogger")
 logger.setLevel(10)
 
-def test_print() -> int:
+
+def print_start() -> int:
     logger.info("STARTING PRESSED")
     return 0
 
@@ -23,8 +25,7 @@ def run_server(
     logger.setLevel(loglevel)
 
     pcommand_map = {
-        "START": test_print,  # note: that this will return a thread and an according stop_event, the default server will be able to do the bookkeeping including stopping the thread when STOP or CLOSE are called
-        "GET_PCOMMS": "START|INIT|STOP|RUN_BLOCK",
+        "START": print_start,
     }
 
     server = DefaultServer(port, ip=ip, pcommand_map=pcommand_map, name="control_room")
@@ -36,6 +37,7 @@ def run_server(
     server.start_listening()
 
     return 0
+
 
 if __name__ == "__main__":
     logger.setLevel(10)

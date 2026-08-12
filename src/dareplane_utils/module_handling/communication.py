@@ -1,7 +1,7 @@
-from abc import ABC, abstractmethod
-from socket import SHUT_RDWR
 import socket
 import time
+from abc import ABC, abstractmethod
+from socket import SHUT_RDWR
 
 
 class Communicator(ABC):
@@ -150,7 +150,6 @@ class SocketCommunicator(Communicator):
                 s.close()
 
                 time.sleep(retry_connection_after_s)
-                pass
             conn_try += 1
 
         raise ConnectionRefusedError(

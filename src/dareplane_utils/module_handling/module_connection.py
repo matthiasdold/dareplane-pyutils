@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 
-from dareplane_utils.module_handling.launcher import Launcher
 from dareplane_utils.module_handling.communication import (
     Communicator,
     SocketCommunicator,
 )
+from dareplane_utils.module_handling.launcher import Launcher
 
 
 @dataclass

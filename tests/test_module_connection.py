@@ -1,14 +1,15 @@
 import time
 from pathlib import Path
-import pytest
-import psutil
 
-from dareplane_utils.module_handling.module_connection import ModuleConnection
-from dareplane_utils.module_handling.launcher import PythonLauncher
+import psutil
+import pytest
+
 from dareplane_utils.module_handling.communication import (
     Communicator,
     SocketCommunicator,
 )
+from dareplane_utils.module_handling.launcher import PythonLauncher
+from dareplane_utils.module_handling.module_connection import ModuleConnection
 
 
 class RecordingCommunicator(Communicator):

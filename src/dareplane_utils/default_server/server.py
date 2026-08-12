@@ -2,9 +2,9 @@ import socket
 import subprocess
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from logging import Logger
-from typing import Callable
 
 from dareplane_utils.default_server.functions import (
     interpret_msg,
@@ -15,10 +15,14 @@ from dareplane_utils.general.time import sleep_s
 from dareplane_utils.logging.logger import get_logger
 
 
+# Commands handled by the server itself, before any pcommand_map lookup. Listed
+# in GET_PCOMMS responses so clients can discover them without a map entry.
+BUILT_IN_PCOMMS = ["STOP", "CLOSE", "GET_PCOMMS", "UP"]
+
+
 class UnknownMsgInterpretation(Exception):
     """Raised when the interpretation of a message is unknown"""
 
-    pass
 
 
 @dataclass
@@ -81,7 +85,7 @@ class DefaultServer:
     is_listening: bool = False
     logger: Logger = get_logger(__name__)
 
-    def init_server(self, stop_event: threading.Event = threading.Event()):
+    def init_server(self, stop_event: threading.Event | None = None):
         """
         Initialize the server socket and set up the stop event.
 
@@ -91,8 +95,9 @@ class DefaultServer:
 
         Parameters
         ----------
-        stop_event : threading.Event, optional
-            A threading event to control the server's listening state. Default is a new threading.Event.
+        stop_event : threading.Event | None, optional
+            A threading event to control the server's listening state. If None, a
+            fresh event is created for this server.
 
         """
         # spawn a socket
@@ -105,7 +110,9 @@ class DefaultServer:
 
         # adding a threading style stop event to potentially run listening in a separate thread
         # and still being able to stop from the controlling script. Otherwise only the socket client could send a stop
-        self.listen_stop_event: threading.Event = stop_event
+        self.listen_stop_event: threading.Event = (
+            stop_event if stop_event is not None else threading.Event()
+        )
 
     def start_listening(self):
         """
@@ -144,7 +151,6 @@ class DefaultServer:
 
     def on_connection_accepted(self):
         """Hook invoked after a connection was accepted, before the banner is sent"""
-        pass
 
     def process_connection(self):
         """
@@ -171,7 +177,7 @@ class DefaultServer:
                     if msg.strip():
                         self.handle_msg(msg)
 
-            except socket.timeout as err:
+            except TimeoutError as err:
                 self.logger.info(f"Caugth timeout error {err=}")
 
             except KeyboardInterrupt as _:
@@ -225,7 +231,7 @@ class DefaultServer:
                 self.logger.debug("Interpreting non-default message")
 
                 msg = msg.replace(b"\r\n", b"")
-                # common start byte, would lead to an error in decode otherwise # noqa
+                # common start byte, would lead to an error in decode otherwise
                 msg = msg.replace(b"\xc2", b"")
                 # Ignore blanks -> e.g. accidental return in telnet
                 if (
@@ -282,7 +288,11 @@ class DefaultServer:
             )  # common start byte, would lead to an error in decode otherwise
 
             self.current_conn.sendall(  # type: ignore
-                ("|".join(list(self.pcommand_map.keys()) + ["STOP", "CLOSE"])).encode()
+                (
+                    "|".join(
+                        list(self.pcommand_map.keys()) + BUILT_IN_PCOMMS
+                    )
+                ).encode()
             )
         elif msg == b"UP":
             self.current_conn.sendall(b"1")  # type: ignore
@@ -299,7 +309,6 @@ class DefaultServer:
         # the book keeping part
         if isinstance(ret, int):
             self.logger.debug(f"{msg=} returned {ret=} after interpretation")
-            pass
 
         # any implementation returning a thread should return the stop_event alongside
         # TODO: think about how this can be enforced
