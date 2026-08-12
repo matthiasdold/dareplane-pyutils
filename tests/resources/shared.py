@@ -51,6 +51,7 @@ def running_server(
     port: int,
     pcommand_map: dict | None = None,
     shutdown_timeout_s: float | None = None,
+    server_cls: type[DefaultServer] = DefaultServer,
 ):
     """Start a DefaultServer listening on `port`, shut it down on exit.
 
@@ -63,6 +64,8 @@ def running_server(
     shutdown_timeout_s : float | None
         Seconds to wait for the server thread to stop. Defaults to
         SHUTDOWN_TIMEOUT_S, settable via ``DP_TEST_SHUTDOWN_TIMEOUT_S``.
+    server_cls : type[DefaultServer]
+        Server class to instantiate, e.g. DefaultCallbackServer.
 
     Yields
     ------
@@ -70,7 +73,7 @@ def running_server(
         The running server instance.
     """
     timeout_s = shutdown_timeout_s if shutdown_timeout_s is not None else SHUTDOWN_TIMEOUT_S
-    server = DefaultServer(port=port)
+    server = server_cls(port=port)
     stop_event = threading.Event()
     server.init_server(stop_event=stop_event)
     server.pcommand_map = pcommand_map or {"STARTTHREAD": get_test_thread}

@@ -150,7 +150,7 @@ class DefaultServer:
             except Exception as err:
                 if self.listen_stop_event.is_set():
                     break
-                self.logger.error(
+                self.logger.error(  # type: ignore
                     f"Error accepting connection at {self.ip=}, {self.port=}, {self.server_socket=}"
                 )
                 raise err
@@ -168,11 +168,17 @@ class DefaultServer:
                 continue
 
             self.process_connection()
+            # process_connection() only returns once the client is gone or the
+            # server is stopping - either way the connection is finished with
+            self.on_connection_closed()
 
         self.is_listening = False
 
     def on_connection_accepted(self):
         """Hook invoked after a connection was accepted, before the banner is sent"""
+
+    def on_connection_closed(self):
+        """Hook invoked after the current connection ended, before the next accept"""
 
     def process_connection(self):
         """
@@ -366,6 +372,13 @@ class DefaultServer:
     def shutdown(self):
         """Shutdown the server and close all connections"""
         self.logger.info(f"Shutting down {self.name}")
+        # Signal first: closing the sockets below makes a blocked accept()/recv()
+        # raise, and the listen loop only treats that as an orderly exit when the
+        # stop event is already set. Without this, shutting down a running server
+        # surfaces an OSError on the listening thread.
+        if hasattr(self, "listen_stop_event"):
+            self.listen_stop_event.set()
+
         if self.current_conn:
             self.current_conn.close()
 
@@ -422,19 +435,31 @@ class DefaultCallbackServer(DefaultServer):
 
     callback_stack: deque[str] = field(default_factory=deque)
 
+    def on_connection_closed(self):
+        """Stop the callback thread belonging to the connection that just ended.
+
+        The thread is bound to that socket, so it has nothing left to do. Relying
+        on a failing send instead would keep it alive for as long as the stack is
+        empty, and only surface the disconnect on the next payload.
+        """
+        self.close_threads()
+
     def on_connection_accepted(self):
         """Spawn the thread sending queued callbacks to the freshly connected client"""
+        # Defensive: normally on_connection_closed() already stopped the previous
+        # thread, but a client that disconnects before the banner is sent skips it.
+        self.close_threads()
+
         callback_stop_event = threading.Event()
         callback_thread = threading.Thread(
             target=process_callbacks,
-            args=(self, callback_stop_event),
-            # daemon so a callback thread that outlives its stop event can never
-            # block interpreter shutdown - close_threads() remains the orderly path
+            args=(
+                self,
+                self.current_conn,
+                callback_stop_event,
+            ),  # make connection explicit such that no silent handover/reference to another future connection can happen
             daemon=True,
         )
-        # A unique key is required: a literal would be overwritten on every new
-        # connection, dropping the previous thread from the book keeping and
-        # leaving it running with no way to stop it.
         self.threads[self._bookkeeping_key(b"callbacks")] = (
             callback_thread,
             callback_stop_event,
@@ -442,36 +467,36 @@ class DefaultCallbackServer(DefaultServer):
         callback_thread.start()
 
 
-def process_callbacks(server: DefaultCallbackServer, stop_event: threading.Event):
+def process_callbacks(
+    server: DefaultCallbackServer,
+    conn: socket.socket,
+    stop_event: threading.Event,
+):
     """
-    Process callback messages and send them to the connected client.
+    Process callback messages and send them to a specific connected client.
 
     This function runs in a separate thread and continuously checks the callback stack for messages.
     If there are messages in the stack, it sends them to the connected client and removes them from the stack.
     The function stops processing when the stop event is set.
 
-    A failed send ends the thread: the payloads are bound to the connection this
-    thread was spawned for, and a fresh thread is started for the next client by
-    `DefaultCallbackServer.on_connection_accepted`. Delivery is therefore at most
-    once - a payload popped for a connection that dies is not re-queued.
+    The thread is bound to `conn` rather than reading `server.current_conn`, so it
+    can never deliver payloads queued for one client to the next one. It ends when
+    the stop event is set - which `DefaultCallbackServer.on_connection_closed`
+    does as soon as the client disconnects - or when a send fails. Delivery is at
+    most once: a payload popped for a connection that dies is not re-queued.
 
     Parameters
     ----------
     server : DefaultCallbackServer
-        The server instance that contains the callback stack and the current connection.
+        The server instance holding the callback stack.
+    conn : socket.socket
+        The connection this thread sends to, as accepted by `start_listening`.
     stop_event : threading.Event
         An event that, when set, signals the function to stop processing callbacks.
     """
 
     # Process callback stack
     while not stop_event.is_set():
-        # snapshot: current_conn is replaced on the next accept() and closed by
-        # shutdown(), so it must not be re-read between the check and the send
-        conn = server.current_conn
-        if conn is None:
-            sleep_s(0.001)
-            continue
-
         try:
             payload = server.callback_stack.popleft()
         except IndexError:  # nothing queued - deque keeps this atomic
