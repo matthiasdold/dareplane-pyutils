@@ -1,5 +1,6 @@
 # functions shard between test files
 import contextlib
+import os
 import socket
 import subprocess
 import sys
@@ -9,8 +10,17 @@ import time
 from dareplane_utils.default_server.server import DefaultServer
 
 
+# Teardown grace period. CI runners are slower than a dev machine, so allow an
+# override via the environment instead of hardcoding a single value.
+SHUTDOWN_TIMEOUT_S = float(os.environ.get("DP_TEST_SHUTDOWN_TIMEOUT_S", "5"))
+
+
 @contextlib.contextmanager
-def running_server(port: int, pcommand_map: dict | None = None):
+def running_server(
+    port: int,
+    pcommand_map: dict | None = None,
+    shutdown_timeout_s: float | None = None,
+):
     """Start a DefaultServer listening on `port`, shut it down on exit.
 
     Parameters
@@ -19,12 +29,16 @@ def running_server(port: int, pcommand_map: dict | None = None):
         Port to bind. Each test should pass its own to avoid collisions.
     pcommand_map : dict | None
         Command map to install; defaults to a single thread-spawning command.
+    shutdown_timeout_s : float | None
+        Seconds to wait for the server thread to stop. Defaults to
+        SHUTDOWN_TIMEOUT_S, settable via ``DP_TEST_SHUTDOWN_TIMEOUT_S``.
 
     Yields
     ------
     DefaultServer
         The running server instance.
     """
+    timeout_s = shutdown_timeout_s if shutdown_timeout_s is not None else SHUTDOWN_TIMEOUT_S
     server = DefaultServer(port=port)
     stop_event = threading.Event()
     server.init_server(stop_event=stop_event)
@@ -36,9 +50,20 @@ def running_server(port: int, pcommand_map: dict | None = None):
     try:
         yield server
     finally:
+        # Setting the stop event alone is not enough: the loop is parked in a
+        # blocking accept()/recv() and only re-checks the flag once those return.
+        # Closing the listening socket is what actually breaks accept(), so it
+        # has to happen before the join rather than in shutdown() afterwards.
         stop_event.set()
-        server_thread.join()
+        if server.server_socket:
+            server.server_socket.close()
+        server_thread.join(timeout=timeout_s)
+        alive = server_thread.is_alive()
         server.shutdown()
+        if alive:
+            raise RuntimeError(
+                f"server thread on port {port} did not stop within {timeout_s}s"
+            )
 
 
 @contextlib.contextmanager
