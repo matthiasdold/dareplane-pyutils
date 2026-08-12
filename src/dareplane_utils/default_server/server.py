@@ -445,14 +445,22 @@ class DefaultCallbackServer(DefaultServer):
         The thread is bound to that socket, so it has nothing left to do. Relying
         on a failing send instead would keep it alive for as long as the stack is
         empty, and only surface the disconnect on the next payload.
+
+        The stack is cleared alongside it: payloads are tied to the connection
+        they were queued for, so anything left over - or appended while no client
+        is connected - must not be delivered to whoever connects next.
         """
         self.close_threads()
+        self.callback_stack.clear()
 
     def on_connection_accepted(self):
         """Spawn the thread sending queued callbacks to the freshly connected client"""
         # Defensive: normally on_connection_closed() already stopped the previous
-        # thread, but a client that disconnects before the banner is sent skips it.
+        # thread and cleared the stack, but a client that disconnects before the
+        # banner is sent skips it. Clearing here also covers payloads appended in
+        # the window between that close and this accept.
         self.close_threads()
+        self.callback_stack.clear()
 
         callback_stop_event = threading.Event()
         callback_thread = threading.Thread(

@@ -50,15 +50,65 @@ def test_callback_stack_is_a_deque():
 
 
 def test_each_connection_gets_its_own_tracked_thread():
-    """A literal book keeping key would drop the previous thread on reconnect"""
+    """Every connection registers under its own key - a literal would collide.
+
+    Keys are collected while each connection is live: on_connection_closed()
+    unregisters the thread once the client goes away.
+    """
+    keys = []
     with callback_server(8183) as server:
         for _ in range(3):
             with connected_client(8183, drain_banner=True):
-                wait_until(lambda: server.current_conn is not None)
+                assert wait_until(lambda: len(server.threads) > 0)
+                keys += [k for k in server.threads if "callbacks" in k]
 
-        keys = [k for k in server.threads if "callbacks" in k]
-        assert len(keys) == 3
-        assert len(set(keys)) == 3
+    assert len(keys) == 3
+    assert len(set(keys)) == 3
+
+
+def test_callback_thread_stops_when_its_connection_closes():
+    """The thread is bound to one connection and must not outlive it"""
+    with callback_server(8187) as server:
+        with connected_client(8187, drain_banner=True):
+            assert wait_until(lambda: len(server.threads) > 0)
+            thread = next(t for t, _ in server.threads.values())
+            assert thread.is_alive()
+
+        # client gone: the stack is empty, so only the close hook can end this
+        assert wait_until(lambda: not thread.is_alive())
+        assert not server.threads
+
+
+def test_payloads_are_not_delivered_to_a_later_client():
+    """Stale payloads from a closed connection must not reach the next client.
+
+    The banner is drained by content rather than with a single recv(): the
+    callback thread is spawned in on_connection_accepted(), i.e. *before*
+    start_listening() sends the banner, so a leaked payload can arrive ahead of
+    it. A plain recv() would consume the payload and let the banner show up as
+    the "leak", inverting what the assertion reports.
+    """
+    banner = f"Connected to {DefaultCallbackServer.name}\n".encode()
+
+    with callback_server(8188) as server:
+        with connected_client(8188) as client:
+            assert wait_until(lambda: len(server.threads) > 0)
+            assert recv_all(client, len(banner)) == banner
+
+        # queued after the first client left - its thread is already stopped
+        server.callback_stack.append("STALE;")
+
+        with connected_client(8188) as client:
+            assert wait_until(lambda: len(server.threads) > 0)
+            assert recv_all(client, len(banner)) == banner
+
+            # anything beyond the banner is a payload that leaked across connections
+            client.settimeout(0.5)
+            try:
+                leaked = client.recv(64)
+            except TimeoutError:
+                leaked = b""
+            assert leaked == b""
 
 
 def test_callback_threads_are_daemons():
@@ -115,8 +165,9 @@ def test_closed_connection_stops_thread_without_raising():
     server.current_conn = left
 
     stop_event = threading.Event()
+
     thread = threading.Thread(
-        target=process_callbacks, args=(server, stop_event), daemon=True
+        target=process_callbacks, args=(server, left, stop_event), daemon=True
     )
     thread.start()
     try:
