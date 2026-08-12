@@ -22,7 +22,7 @@ def noop(*args, **kwargs) -> int:
 
 
 def parse_msg(
-    msg: str, pcommand_map: dict, logger: Logger = logger
+    msg: bytes, pcommand_map: dict, logger: Logger = logger
 ) -> tuple[Callable, tuple, dict]:
     """
     Parse a bytes msg and return the relevant function + potential kwargs
@@ -80,13 +80,13 @@ def parse_msg(
 
 # This is the default behavior for interpretation of messages
 def interpret_msg(
-    binary_msg: str, pcommand_map: dict, logger: Logger = logger, **kwargs
+    binary_msg: bytes, pcommand_map: dict, logger: Logger = logger, **kwargs
 ) -> threading.Thread | subprocess.Popen | int:
     """Interpret a message and start a threading, subprocess or return an int
 
     Parameters
     ----------
-    binary_msg : str
+    binary_msg : bytes
         the binary string msg as received by the socket
     pcommand_map : dict
         a map of primary commands to functions

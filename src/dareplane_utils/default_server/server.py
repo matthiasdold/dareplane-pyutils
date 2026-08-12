@@ -333,7 +333,7 @@ class DefaultServer:
         """
         return f"{time.time_ns()}_{next(self._bookkeeping_counter)}_{msg}"
 
-    def msg_interpretation(self, msg: str):
+    def msg_interpretation(self, msg: bytes):
         """Interpret the message and perform book keeping if necessary"""
         ret = interpret_msg(msg, self.pcommand_map, logger=self.logger)
 
@@ -427,9 +427,17 @@ class DefaultCallbackServer(DefaultServer):
         callback_thread = threading.Thread(
             target=process_callbacks,
             args=(self, callback_stop_event),
+            # daemon so a callback thread that outlives its stop event can never
+            # block interpreter shutdown - close_threads() remains the orderly path
+            daemon=True,
         )
-        # add to automatically manage closing
-        self.threads["callbacks"] = (callback_thread, callback_stop_event)
+        # A unique key is required: a literal would be overwritten on every new
+        # connection, dropping the previous thread from the book keeping and
+        # leaving it running with no way to stop it.
+        self.threads[self._bookkeeping_key(b"callbacks")] = (
+            callback_thread,
+            callback_stop_event,
+        )
         callback_thread.start()
 
 
@@ -453,4 +461,5 @@ def process_callbacks(server: DefaultCallbackServer, stop_event: threading.Event
     while not stop_event.is_set():
         while len(server.callback_stack) > 0:
             server.current_conn.sendall(server.callback_stack.pop(0).encode())  # type: ignore
-            sleep_s(0.001)
+
+        sleep_s(0.001)

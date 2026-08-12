@@ -75,7 +75,10 @@ def running_server(
     server.init_server(stop_event=stop_event)
     server.pcommand_map = pcommand_map or {"STARTTHREAD": get_test_thread}
 
-    server_thread = threading.Thread(target=server.start_listening)
+    # daemon: if teardown ever fails to stop this thread, it must not keep the
+    # interpreter alive - CPython joins non-daemon threads without a timeout at
+    # exit, which turns a test failure into a hung process
+    server_thread = threading.Thread(target=server.start_listening, daemon=True)
     server_thread.start()
 
     try:
@@ -134,8 +137,12 @@ def get_test_subprocess() -> subprocess.Popen:
 
 def get_test_thread() -> subprocess.Popen:
     stop_event = threading.Event()
+    # daemon for the same reason as the server thread: a spawned test thread that
+    # outlives its stop_event must not block interpreter shutdown
     thread = threading.Thread(
-        target=thread_event_interupted_sleep, kwargs={"stop_event": stop_event}
+        target=thread_event_interupted_sleep,
+        kwargs={"stop_event": stop_event},
+        daemon=True,
     )
 
     return thread, stop_event
